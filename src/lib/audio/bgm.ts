@@ -34,8 +34,23 @@ export class BgmPlayer {
 
   constructor(private song: Song) {}
 
+  /** 効果音からも同じ AudioContext を使う（iOSでは1つにしないと鳴らないことがある） */
+  get context(): AudioContext | null {
+    return this.ctx;
+  }
+
   get playing() {
     return this.timer !== null;
+  }
+
+  /** 曲を切り替える。鳴っていれば新しい曲を頭から鳴らす */
+  setSong(song: Song) {
+    if (song === this.song) return;
+    this.song = song;
+    if (this.playing) {
+      this.stop();
+      this.start();
+    }
   }
 
   start() {

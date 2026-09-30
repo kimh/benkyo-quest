@@ -56,3 +56,66 @@ body {
 .blink {
   animation: blink 1s steps(1) infinite;
 }
+
+/* ===== バトル ===== */
+.battle-field {
+  background:
+    linear-gradient(to bottom, transparent 62%, #2d6a3a 62%, #3f8a4a 100%),
+    linear-gradient(to bottom, #3a5fb8 0%, #7aa6e8 62%);
+}
+
+@keyframes battle-float {
+  50% { transform: translateY(-6px); }
+}
+.battle-float { animation: battle-float 1.6s steps(4) infinite; }
+
+@keyframes battle-appear {
+  0% { opacity: 0; transform: translateX(60px) scale(0.6); }
+  60% { opacity: 1; transform: translateX(-6px) scale(1.05); }
+  100% { transform: none; }
+}
+.battle-appear { animation: battle-appear 0.6s ease-out; }
+
+@keyframes battle-lunge-right {
+  40% { transform: translateX(120px); }
+}
+.battle-lunge-right { animation: battle-lunge-right 0.5s ease-in-out; }
+
+@keyframes battle-lunge-left {
+  40% { transform: translateX(-120px); }
+}
+.battle-lunge-left { animation: battle-lunge-left 0.5s ease-in-out; }
+
+@keyframes battle-hit {
+  0%, 30% { transform: none; filter: none; }
+  35%, 55%, 75% { transform: translateX(8px); filter: brightness(3); }
+  45%, 65%, 85% { transform: translateX(-8px); filter: none; }
+  100% { transform: none; }
+}
+.battle-hit { animation: battle-hit 0.8s linear; }
+
+@keyframes battle-shake {
+  30%, 50%, 70% { transform: translateX(-6px); }
+  40%, 60%, 80% { transform: translateX(6px); }
+}
+.battle-shake { animation: battle-shake 0.7s linear; }
+
+@keyframes battle-defeat {
+  0%, 40% { opacity: 1; filter: brightness(2); }
+  20%, 60% { opacity: 0.3; }
+  100% { opacity: 0; transform: translateY(20px) scale(0.8); }
+}
+.battle-defeat { animation: battle-defeat 0.9s steps(8) forwards; }
+
+@keyframes battle-popup {
+  0% { opacity: 0; transform: translateY(10px) scale(0.6); }
+  25% { opacity: 1; transform: translateY(-10px) scale(1.2); }
+  100% { opacity: 0; transform: translateY(-30px); }
+}
+.battle-popup { animation: battle-popup 1s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-float, .battle-appear, .battle-lunge-right, .battle-lunge-left, .battle-hit, .battle-shake, .battle-popup {
+    animation: none;
+  }
+}

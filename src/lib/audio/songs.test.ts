@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { FIELD_SONG, frequency, length } from "./songs";
+import { BATTLE_SONG, BOSS_SONG, FIELD_SONG, frequency, length } from "./songs";
 
-describe("FIELD_SONG", () => {
+describe.each([
+  ["FIELD_SONG", FIELD_SONG],
+  ["BATTLE_SONG", BATTLE_SONG],
+  ["BOSS_SONG", BOSS_SONG],
+])("%s", (_, song) => {
   it("メロディとベースが同じ長さ（8小節）", () => {
-    expect(length(FIELD_SONG.melody)).toBe(64);
-    expect(length(FIELD_SONG.bass)).toBe(64);
+    expect(length(song.melody)).toBe(64);
+    expect(length(song.bass)).toBe(64);
   });
   it("すべての音名が読める", () => {
-    for (const [p] of [...FIELD_SONG.melody, ...FIELD_SONG.bass]) expect(() => frequency(p)).not.toThrow();
+    for (const [p] of [...song.melody, ...song.bass]) expect(() => frequency(p)).not.toThrow();
+  });
+});
+
+describe("BOSS_SONG", () => {
+  it("バトル曲を半音上げている（A4 → A#4）", () => {
+    expect(BOSS_SONG.melody[0][0]).toBe("A#4");
+    expect(BOSS_SONG.bass[0][0]).toBe("A#2");
   });
 });
 
