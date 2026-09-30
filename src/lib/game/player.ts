@@ -1,6 +1,7 @@
 import { daysBetween } from "@/lib/date";
 
-export const GRADES = [1, 2, 3, 4, 5, 6] as const;
+/** 0 は保育園（5さい・年長） */
+export const GRADES = [0, 1, 2, 3, 4, 5, 6] as const;
 export const NAME_MAX_LENGTH = 8;
 export const MAX_PLAYERS = 6;
 /** 科目レベル(1〜10)の初期値。正答率で上下する */
@@ -19,6 +20,9 @@ export function validateName(input: unknown): NameResult {
 }
 
 export function parseGrade(input: unknown): number | null {
+  // Number("") は 0 になるので、空の入力を保育園と取りちがえないようにする
+  if (typeof input !== "string" && typeof input !== "number") return null;
+  if (typeof input === "string" && input.trim() === "") return null;
   const n = Number(input);
   return (GRADES as readonly number[]).includes(n) ? n : null;
 }

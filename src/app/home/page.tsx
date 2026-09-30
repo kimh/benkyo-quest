@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Knock } from "@/components/Knock";
 import { MessageWindow } from "@/components/MessageWindow";
 import { PixelButton, PixelLink } from "@/components/PixelButton";
+import { gradeLabel } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
 import { currentStreak, expToNextLevel } from "@/lib/game/player";
 import { currentPlayer, gemBalance } from "@/lib/players";
@@ -19,7 +20,7 @@ export default async function HomePage() {
       <section className="rpg-window grid grid-cols-2 gap-x-4 gap-y-1 p-4 text-lg">
         <div className="col-span-2 text-2xl text-accent">{player.name}</div>
         <div>Lv {player.playerLevel}</div>
-        <div className="text-right">{player.grade}ねんせい</div>
+        <div className="text-right">{gradeLabel(player.grade)}</div>
         <div className="col-span-2">
           <div className="flex justify-between text-sm">
             <span>EXP</span>

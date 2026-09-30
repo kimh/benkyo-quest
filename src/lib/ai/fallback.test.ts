@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { unitsFor, type Subject } from "@/lib/curriculum/units";
+import { subjectsFor, unitsFor } from "@/lib/curriculum/units";
 import { GRADES } from "@/lib/game/player";
 import { isCorrect, validateQuestion } from "@/lib/game/question";
 import { fallbackQuestion } from "./fallback";
@@ -16,7 +16,7 @@ function seeded(seed: number) {
 
 describe("fallbackQuestion", () => {
   for (const grade of GRADES) {
-    for (const subject of ["math", "english"] as Subject[]) {
+    for (const subject of subjectsFor(grade)) {
       it(`${grade}年 ${subject} は検証に通り、正解で正解になる`, () => {
         const slot = { subject, unit: unitsFor(grade, subject)[0], difficulty: 3 };
         for (let seed = 1; seed <= 300; seed++) {

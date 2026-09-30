@@ -1,4 +1,4 @@
-import type { Subject, Unit } from "@/lib/curriculum/units";
+import { subjectsFor, type Subject, type Unit } from "@/lib/curriculum/units";
 
 export type StageKind = "minion" | "boss";
 
@@ -14,6 +14,12 @@ export const QUEST_STAGES: { kind: StageKind; subjects: Subject[] }[] = [
 ];
 
 export const QUEST_SUBJECTS: Subject[] = QUEST_STAGES.flatMap((s) => s.subjects);
+
+/** その学年のクエストの科目の並び。保育園は英語の枠が「ひらがな」になる */
+export function questSubjects(grade: number): Subject[] {
+  const [main, second] = subjectsFor(grade);
+  return QUEST_SUBJECTS.map((s) => (s === "math" ? main : second));
+}
 
 export type UnitStats = Map<string, { total: number; correct: number }>;
 

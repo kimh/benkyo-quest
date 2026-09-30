@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Knock, type KnockMood } from "@/components/Knock";
 import { MessageWindow } from "@/components/MessageWindow";
 import { PixelButton } from "@/components/PixelButton";
+import { gradeLabel, PRESCHOOL } from "@/lib/curriculum/units";
 import { GRADES, NAME_MAX_LENGTH, validateName } from "@/lib/game/player";
 import { createPlayer, linkPlayer, type SetupState } from "./actions";
 
@@ -43,11 +44,11 @@ export function SetupFlow({ players, canCreate }: Props) {
       text = nameError ?? "はじめまして！ ぼくは ノック。\nきみの なまえを おしえて！";
       break;
     case "grade":
-      text = `${name}！ いい なまえだね！\nいま なんねんせい？`;
+      text = `${name}！ いい なまえだね！\nいま なんねんせい？ ほいくえんの ひとは「ほいくえん」を えらんでね。`;
       break;
     case "confirm":
       mood = error ? "confused" : "cheering";
-      text = error ?? `${grade}ねんせいの ${name}だね！\nこれで ぼうけんのしょを つくるよ！`;
+      text = error ?? `${gradeLabel(grade ?? 1)}の ${name}だね！\nこれで ぼうけんのしょを つくるよ！`;
       break;
     case "pick":
       text = "どの ぼうけんのしょで あそぶ？";
@@ -109,12 +110,13 @@ export function SetupFlow({ players, canCreate }: Props) {
               <PixelButton
                 key={g}
                 variant={g === grade ? "accent" : "default"}
+                className={g === PRESCHOOL ? "col-span-3" : ""}
                 onClick={() => {
                   setGrade(g);
                   setStep({ kind: "confirm" });
                 }}
               >
-                {g}ねん
+                {g === PRESCHOOL ? "ほいくえん（5さい）" : `${g}ねん`}
               </PixelButton>
             ))}
           </div>
@@ -139,7 +141,7 @@ export function SetupFlow({ players, canCreate }: Props) {
         <div className="flex w-full flex-col gap-3">
           {players.map((p) => (
             <PixelButton key={p.id} onClick={() => setStep({ kind: "pickConfirm", player: p })}>
-              {p.name}（{p.grade}ねん）
+              {p.name}（{gradeLabel(p.grade)}）
             </PixelButton>
           ))}
           <PixelButton onClick={() => setStep({ kind: "menu" })}>もどる</PixelButton>

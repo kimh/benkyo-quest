@@ -67,6 +67,39 @@ describe("validateQuestion", () => {
   });
 });
 
+describe("validateQuestion（保育園）", () => {
+  const pre: Question = {
+    ...base,
+    unit: "m0-count",
+    prompt: "🍎🍎🍎 いくつ あるかな？",
+    choices: ["2", "3", "4", "5"],
+    answer: "3",
+    expression: "3",
+    hint: "ゆびで かぞえよう",
+    explanation: "3こ だよ",
+  };
+  it("ひらがなと絵文字だけの4択は合格", () => {
+    expect(validateQuestion(pre, 0)).toEqual([]);
+  });
+  it("漢字は1つも使えない", () => {
+    expect(validateQuestion({ ...pre, prompt: "🍎🍎🍎 何こ あるかな？" }, 0)).toContainEqual(expect.stringContaining("何"));
+  });
+  it("選択肢は2〜4つでよい（どっちが おおい）", () => {
+    const more: Question = { ...pre, unit: "m0-more", prompt: "🐱🐱🐱 と 🐶 どっちが おおい？", choices: ["🐱", "🐶"], answer: "🐱", expression: "" };
+    expect(validateQuestion(more, 0)).toEqual([]);
+    expect(validateQuestion({ ...more, choices: ["🐱"] }, 0)).toContain("選択肢が4つでない");
+    expect(validateQuestion({ ...base, choices: ["41", "31"] }, 2)).toContain("選択肢が4つでない");
+  });
+  it("数字入力は使えない", () => {
+    expect(validateQuestion({ ...pre, format: "number", choices: [] }, 0)).toContain("保育園は4択だけ");
+  });
+  it("ひらがなの問題に式はいらない", () => {
+    const j: Question = { ...pre, subject: "japanese", unit: "j0-match", prompt: "「あ」と おなじ もじは？", choices: ["あ", "お", "め", "ぬ"], answer: "あ" };
+    expect(validateQuestion(j, 0)).toContain("ひらがなの問題に式や英語の読み上げがある");
+    expect(validateQuestion({ ...j, expression: "" }, 0)).toEqual([]);
+  });
+});
+
 describe("isCorrect", () => {
   it("選択肢は完全一致", () => {
     expect(isCorrect(base, "41")).toBe(true);

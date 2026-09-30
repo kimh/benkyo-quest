@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { describeLevel, type Subject, type Unit } from "@/lib/curriculum/units";
+import { describeLevel, PRESCHOOL, subjectName, subjectsFor, type Subject, type Unit } from "@/lib/curriculum/units";
 import { shuffle, validateQuestion, type Question } from "@/lib/game/question";
 import { fallbackQuestion } from "./fallback";
 
@@ -48,9 +48,9 @@ const OutputSchema = z.object({
 
 type RawQuestion = z.infer<typeof OutputSchema>["questions"][number];
 
-const SYSTEM_PROMPT = `あなたは、日本の小学生向けの学習ゲーム「勉強クエスト」の問題作成係です。
+const SYSTEM_PROMPT = `あなたは、日本の子ども（保育園の年長〜小学6年生）向けの学習ゲーム「勉強クエスト」の問題作成係です。
 ゲームはドット絵のRPG風で、マスコットの犬「ノック」が子どもに問題を出します。子どもは問題に答えてモンスターをたおします。
-指定された出題枠ごとに、算数か英語の問題を1問ずつ作ってください。
+指定された出題枠ごとに、算数・英語・かず・ひらがな のどれかの問題を1問ずつ作ってください。
 
 # 問題文 (prompt)
 - ノックが子どもに話しかける台詞として書く。明るく やさしい口調で、ときどき語尾に「ワン！」をつけてよい。
@@ -58,6 +58,7 @@ const SYSTEM_PROMPT = `あなたは、日本の小学生向けの学習ゲーム
 - 1〜2文で短く。図や絵は表示できないので、図形は言葉で説明する。絵文字は使ってよい。
 
 # 学年にあわせた文字
+- 保育園（5さい）: 漢字は1つも使わない。ひらがなだけで書く（カタカナは「ノック」「ワン」だけ）。字が読めない子もいるので、問題文は声で読み上げられる。耳で聞いてわかる、とても短い文にする。
 - 1〜2年生: 文節ごとにスペースを入れる（分かち書き）。ほとんど ひらがなで書き、漢字は1年生の漢字と かんたんな2年生の漢字だけにする。カタカナは使ってよい。
 - 3年生以上: その学年までに習う漢字を使ってよい。むずかしい漢字は ひらがなにする。
 - この文字のルールは prompt・choices・hint・explanation のすべてに当てはまる。
@@ -65,19 +66,26 @@ const SYSTEM_PROMPT = `あなたは、日本の小学生向けの学習ゲーム
 # 形式 (format)
 - "number": 答えが整数か小数になる算数の問題で、数字を入力して答える。choices は空の配列にする。算数の約半分をこの形式にする。
 - "choice": 4択。choices は ちょうど4つ、重複なし。answer は choices のどれか1つと完全に同じ文字列にする。まちがいの選択肢は、よくある まちがい（くり上がりわすれ、けたのずれ など）から作る。
-- 英語は必ず "choice" にする。
+- 英語・ひらがな・保育園の問題は必ず "choice" にする。
 
 # 算数の答えと式 (expression)
 - 答えが数（整数・小数・分数）になるときは、必ず答えを計算する式を expression に書く。答えが分数 1/4 なら expression も "1/4" のように書く。数の読み書きのように計算がない問題でも、答えの数をそのまま書く（答え 3520 なら expression は "3520"）。使えるのは数字・小数点・+ - * / ( ) だけ（×や÷は使わない）。式を計算した結果は answer とぴったり同じ値にする。
 - 数を答える選択肢と answer は数字だけにする（「こ」「cm」などの単位は問題文に書く）。分数は 3/4 のように書く。
 - 時こくや図形の名前など、答えが数でないときは expression を空文字列にする。
-- 英語の問題の expression は必ず空文字列にする。
+- 英語・ひらがなの問題の expression は必ず空文字列にする。
 
 # 英語
 - 1〜2年生: 読み上げを聞いて答える問題にする。speech に読み上げる英語（単語や短い文）を書き、choices は絵文字にする（例: speech "dog"、choices ["🐶","🐱","🐦","🐟"]）。prompt には答えの英語を書かない（「よみあげを きいてね！ どれかな？」のように書く）。
 - 3〜4年生: 読み上げ問題と、かんたんな単語の意味の問題をまぜる。
 - 5〜6年生: 単語の意味、文の空らんうめ、読み上げを聞いて答える問題をまぜる。
 - speech は英語の半角文字だけで書く。読み上げがいらない問題では空文字列にする。
+
+# 保育園（5さい・年長）
+- 「かず」: 絵文字を並べて数えたり（🍎🍎🍎 は いくつ？）、くらべたりする。数は10まで。答えが数のときは expression に答えの数（または 2+1 のような式）を書く。選択肢は数字だけ。
+- 「ひらがな」: 1もじの ひらがな・短い ことば・絵文字を選択肢にする。まちがいの選択肢には、かたちや音の にている もじを入れる。speech と expression は空文字列にする。
+- 「どっちが おおい」のように、くらべる2つから えらぶ問題は choices を2つにしてよい（それ以外は4つ）。「わからない」のような つなぎの選択肢は入れない。
+- 絵文字の数は子どもが数えやすいように、10こまでにする。問題文で絵文字の並びを先に書き、改行してから質問を書いてよい。
+- ほめる、はげます言葉を多めにする。
 
 # ヒントと解説
 - hint: 答えは書かずに、考え方の手がかりをノックの口調で1文で書く。
@@ -92,15 +100,15 @@ const SYSTEM_PROMPT = `あなたは、日本の小学生向けの学習ゲーム
 出題枠の番号 (slot) は、指定された番号をそのまま使うこと。`;
 
 function userMessage(input: GenerateInput, slotIndexes: number[]): string {
+  const { grade } = input;
   const lines = [
-    `学年: 小学${input.grade}年生`,
-    `算数の難しさ: ${describeLevel(input.levels.math)}`,
-    `英語の難しさ: ${describeLevel(input.levels.english)}`,
+    `学年: ${grade === PRESCHOOL ? "保育園の年長（5さい）" : `小学${grade}年生`}`,
+    ...subjectsFor(grade).map((s) => `${subjectName(s, grade)}の難しさ: ${describeLevel(input.levels[s])}`),
     "",
     "出題枠:",
     ...slotIndexes.map((i) => {
       const s = input.slots[i];
-      return `- slot ${i}: ${s.subject === "math" ? "算数" : "英語"}「${s.unit.name}」（${s.unit.guide}）`;
+      return `- slot ${i}: ${subjectName(s.subject, grade)}「${s.unit.name}」（${s.unit.guide}）`;
     }),
   ];
   if (input.recentPrompts.length) {

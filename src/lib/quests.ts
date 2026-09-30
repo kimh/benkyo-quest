@@ -5,7 +5,7 @@ import { unitsFor, type Subject } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
 import { db, schema } from "@/lib/db";
 import { gemRef, gemsForCorrect, GEM_QUEST_CLEAR } from "@/lib/game/gems";
-import { MAX_QUESTS_PER_DAY, pickUnits, QUEST_SUBJECTS, type UnitStats } from "@/lib/game/quest";
+import { MAX_QUESTS_PER_DAY, pickUnits, questSubjects, type UnitStats } from "@/lib/game/quest";
 import { isCorrect, type Question } from "@/lib/game/question";
 import { gemBalance, type Player } from "@/lib/players";
 
@@ -74,13 +74,20 @@ async function recentPrompts(playerId: number): Promise<string[]> {
   return rows.flatMap((r) => (r.questions as Question[]).map((q) => q.prompt));
 }
 
+export function subjectLevels(player: Player): Record<Subject, number> {
+  return { math: player.mathLevel, english: player.englishLevel, japanese: player.japaneseLevel };
+}
+
 function buildSlots(player: Player, stats: UnitStats): Slot[] {
-  const levels: Record<Subject, number> = { math: player.mathLevel, english: player.englishLevel };
-  const picked: Record<Subject, ReturnType<typeof pickUnits>> = {
-    math: pickUnits(unitsFor(player.grade, "math"), stats, QUEST_SUBJECTS.filter((s) => s === "math").length),
-    english: pickUnits(unitsFor(player.grade, "english"), stats, QUEST_SUBJECTS.filter((s) => s === "english").length),
-  };
-  return QUEST_SUBJECTS.map((subject) => ({ subject, unit: picked[subject].shift()!, difficulty: levels[subject] }));
+  const levels = subjectLevels(player);
+  const subjects = questSubjects(player.grade);
+  const picked = new Map(
+    [...new Set(subjects)].map((subject) => [
+      subject,
+      pickUnits(unitsFor(player.grade, subject), stats, subjects.filter((s) => s === subject).length),
+    ]),
+  );
+  return subjects.map((subject) => ({ subject, unit: picked.get(subject)!.shift()!, difficulty: levels[subject] }));
 }
 
 /**
@@ -113,7 +120,7 @@ async function createQuest(player: Player, round: number): Promise<TodayQuest> {
   const slots = buildSlots(player, stats);
   const { questions, aiCount, rejected, failures } = await generateQuestions({
     grade: player.grade,
-    levels: { math: player.mathLevel, english: player.englishLevel },
+    levels: subjectLevels(player),
     slots,
     recentPrompts: recent,
   });

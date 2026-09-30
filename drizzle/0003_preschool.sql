@@ -1,0 +1,1 @@
+ALTER TABLE "players" ADD COLUMN "japanese_level" integer DEFAULT 3 NOT NULL;

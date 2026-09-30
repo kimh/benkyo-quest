@@ -21,9 +21,12 @@ describe("validateName", () => {
 });
 
 describe("parseGrade", () => {
-  it("1〜6年のみ受け付ける", () => {
+  it("保育園(0)と1〜6年のみ受け付ける", () => {
     expect(parseGrade("2")).toBe(2);
-    expect(parseGrade("0")).toBeNull();
+    expect(parseGrade("0")).toBe(0);
+    expect(parseGrade("")).toBeNull();
+    expect(parseGrade(null)).toBeNull();
+    expect(parseGrade("-1")).toBeNull();
     expect(parseGrade("7")).toBeNull();
     expect(parseGrade("x")).toBeNull();
   });

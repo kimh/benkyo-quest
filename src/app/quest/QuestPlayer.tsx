@@ -5,10 +5,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Knock, type KnockMood } from "@/components/Knock";
 import { MessageWindow } from "@/components/MessageWindow";
 import { PixelButton, PixelLink } from "@/components/PixelButton";
+import { PRESCHOOL, subjectLabel } from "@/lib/curriculum/units";
 import type { PublicQuestion } from "@/lib/game/question";
 
 type Progress = { attempts: number; correct: boolean | null };
 type TodayResponse = {
+  grade: number;
   round: number;
   maxRounds: number;
   status: "in_progress" | "cleared";
@@ -33,13 +35,14 @@ type Phase =
 
 const finished = (p: Progress) => p.correct === true || p.attempts >= 2;
 
-/** 英語の読み上げ（ブラウザの音声合成） */
-function speak(text: string) {
+/** 読み上げ（ブラウザの音声合成）。英語の問題は英語で、保育園の問題文は日本語で読む */
+function speak(text: string, lang: "en-US" | "ja-JP" = "en-US") {
   try {
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US";
-    u.rate = 0.85;
+    // 絵文字は読むと答えがわかったり、長くなったりするので読まない
+    const u = new SpeechSynthesisUtterance(text.replace(/\p{Extended_Pictographic}|\uFE0F/gu, " "));
+    u.lang = lang;
+    u.rate = lang === "ja-JP" ? 0.9 : 0.85;
     speechSynthesis.speak(u);
   } catch {
     // 読み上げに対応していない端末では何もしない
@@ -86,10 +89,20 @@ export function QuestPlayer() {
 
   const q = quest?.questions[index];
 
-  // 英語の読み上げ問題は、表示したときに一度読む
+  // 字が読めない保育園の子には、問題文・ヒントを日本語で読み上げる
+  const readAloud = quest?.grade === PRESCHOOL;
+
+  // 英語の読み上げ問題・保育園の問題は、表示したときに一度読む
   useEffect(() => {
-    if (phase.kind === "question" && !phase.hint && q?.speech) speak(q.speech);
-  }, [phase, q]);
+    if (phase.kind === "feedback" && readAloud) {
+      const r = phase.res;
+      speak(r.result === "correct" ? "せいかい！ すごいね！" : `ざんねん。こたえは ${r.answer} だよ。`, "ja-JP");
+      return;
+    }
+    if (phase.kind !== "question" || !q) return;
+    if (readAloud) speak(phase.hint ? `ヒントだよ。${phase.hint}` : q.prompt, "ja-JP");
+    else if (!phase.hint && q.speech) speak(q.speech);
+  }, [phase, q, readAloud]);
 
   async function answer(value: string) {
     if (!quest || phase.kind !== "question") return;
@@ -185,7 +198,7 @@ export function QuestPlayer() {
     <div className="flex items-center justify-between text-lg">
       <Link href="/home" className="text-white/70">◀ ホーム</Link>
       <span>
-        {quest.round}かいめ　{q.subject === "math" ? "さんすう" : "えいご"}　{index + 1} / {quest.questions.length}
+        {quest.round}かいめ　{subjectLabel(q.subject, quest.grade)}　{index + 1} / {quest.questions.length}
       </span>
       <span className="text-gem">💎 {quest.gems.balance}</span>
     </div>
@@ -221,8 +234,11 @@ export function QuestPlayer() {
       />
       {hint && <p className="rpg-window p-3 text-lg">{q.prompt}</p>}
 
-      {q.speech && (
-        <PixelButton onClick={() => speak(q.speech)} disabled={sending}>
+      {(q.speech || readAloud) && (
+        <PixelButton
+          onClick={() => (readAloud ? speak(hint ?? q.prompt, "ja-JP") : speak(q.speech))}
+          disabled={sending}
+        >
           🔈 もういちど きく
         </PixelButton>
       )}

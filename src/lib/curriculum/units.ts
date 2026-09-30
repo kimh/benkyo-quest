@@ -1,4 +1,4 @@
-export type Subject = "math" | "english";
+export type Subject = "math" | "english" | "japanese";
 
 export type Unit = {
   id: string;
@@ -7,13 +7,34 @@ export type Unit = {
   guide: string;
 };
 
-type Curriculum = Record<number, Record<Subject, Unit[]>>;
+type Curriculum = Record<number, Partial<Record<Subject, Unit[]>>>;
+
+/** 保育園（5さい・年長）は学年 0 として扱う */
+export const PRESCHOOL = 0;
 
 /**
  * 学年×科目の単元。想定ユーザーの2年生・5年生は細かく、それ以外は大まかに定義する。
+ * 保育園は 算数のかわりに「かず」、英語のかわりに「ひらがな」を出す。
  * id は成績集計に使うので変更しないこと。
  */
 export const CURRICULUM: Curriculum = {
+  0: {
+    math: [
+      { id: "m0-count", name: "かぞえよう", guide: "絵文字を1〜10こ ならべて、いくつあるか数える（例: 🍎🍎🍎 は いくつ？）" },
+      { id: "m0-more", name: "どっちが おおい", guide: "2つの絵文字のならびを くらべて、おおい・すくない方をえらぶ。選択肢は くらべる2つの絵文字。数は10まで" },
+      { id: "m0-number", name: "すうじ", guide: "1〜10の すうじの よみかた（「ご」は どれ？ → 5）、つぎの かず・まえの かず" },
+      { id: "m0-shape", name: "かたち", guide: "まる・さんかく・しかくを 絵文字（⚪🔺🟦 など）で えらぶ、にている かたちの ものを えらぶ" },
+      { id: "m0-order", name: "じゅんばん", guide: "絵文字のならびで、まえから なんばんめ・なんばんめに いるのは だれ（5ばんめまで）" },
+      { id: "m0-add", name: "あわせて いくつ", guide: "絵文字で あわせて いくつ（こたえは5まで）。例: 🐶🐶 と 🐶 で なんびき？" },
+    ],
+    japanese: [
+      { id: "j0-match", name: "おなじ もじ", guide: "「あ」と おなじ もじを えらぶ。選択肢は かたちの にている ひらがなを まぜる" },
+      { id: "j0-first", name: "さいしょの もじ", guide: "絵文字と ことば（🍎 りんご）の さいしょの もじを えらぶ" },
+      { id: "j0-word", name: "えと ことば", guide: "絵文字を見て、あう ことば（ひらがな2〜3もじ）を えらぶ。例: 🐶 → いぬ" },
+      { id: "j0-similar", name: "にている もじ", guide: "かたちの にている もじ（さ/ち、ぬ/め、わ/ね/れ、は/ほ、る/ろ）の 見分け" },
+      { id: "j0-last", name: "おわりの もじ", guide: "絵文字と ことば（🐱 ねこ）の おわりの もじを えらぶ" },
+    ],
+  },
   1: {
     math: [
       { id: "m1-count", name: "かずと すうじ", guide: "20までの数の数え方・大小" },
@@ -130,7 +151,29 @@ export const CURRICULUM: Curriculum = {
 };
 
 export function unitsFor(grade: number, subject: Subject): Unit[] {
-  return CURRICULUM[grade]?.[subject] ?? CURRICULUM[2][subject];
+  return CURRICULUM[grade]?.[subject] ?? CURRICULUM[2][subject] ?? CURRICULUM[PRESCHOOL][subject] ?? [];
+}
+
+/** その学年で出す2つの科目。保育園は「かず」と「ひらがな」、小学生は算数と英語 */
+export function subjectsFor(grade: number): [main: Subject, second: Subject] {
+  return grade === PRESCHOOL ? ["math", "japanese"] : ["math", "english"];
+}
+
+/** 画面に出す科目名 */
+export function subjectLabel(subject: Subject, grade: number): string {
+  if (subject === "math") return grade === PRESCHOOL ? "かず" : "さんすう";
+  return subject === "english" ? "えいご" : "ひらがな";
+}
+
+/** AIへの指示に使う科目名 */
+export function subjectName(subject: Subject, grade: number): string {
+  if (subject === "math") return grade === PRESCHOOL ? "かず（数の学習）" : "算数";
+  return subject === "english" ? "英語" : "ひらがな";
+}
+
+/** 画面に出す学年名 */
+export function gradeLabel(grade: number): string {
+  return grade === PRESCHOOL ? "ほいくえん" : `${grade}ねんせい`;
 }
 
 export function findUnit(grade: number, subject: Subject, id: string): Unit | undefined {

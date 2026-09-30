@@ -44,7 +44,9 @@ export function validateQuestion(q: Question, grade: number): string[] {
   if (q.speech && /[^\x20-\x7e]/.test(q.speech)) errors.push("読み上げに英語以外の文字がある");
 
   if (q.format === "choice") {
-    if (q.choices.length !== 4) errors.push("選択肢が4つでない");
+    // 保育園の「どっちが おおい」のような問題は2つでもよい
+    const minChoices = grade === 0 ? 2 : 4;
+    if (q.choices.length < minChoices || q.choices.length > 4) errors.push("選択肢が4つでない");
     if (new Set(q.choices.map((c) => c.trim())).size !== q.choices.length) errors.push("選択肢が重複している");
     if (q.choices.some((c) => !c.trim() || c.length > MAX_CHOICE)) errors.push("選択肢が空か長すぎる");
     if (!q.choices.includes(q.answer)) errors.push("正解が選択肢にない");
@@ -53,6 +55,9 @@ export function validateQuestion(q: Question, grade: number): string[] {
     if (!parseDecimal(q.answer)) errors.push("数字入力の答えが整数・小数でない");
     if (q.subject !== "math") errors.push("数字入力は算数だけ");
   }
+
+  if (grade === 0 && q.format !== "choice") errors.push("保育園は4択だけ");
+  if (q.subject === "japanese" && (q.expression || q.speech)) errors.push("ひらがなの問題に式や英語の読み上げがある");
 
   if (q.subject === "math") {
     const answerValue = parseAnswerNumber(q.answer);

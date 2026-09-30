@@ -2,15 +2,20 @@ import { shuffle, type Question } from "@/lib/game/question";
 import type { Slot } from "./generate";
 
 /**
- * AIが使えないとき用の問題。算数はコードで作り、英語は固定の問題集から出す。
- * 1〜2年生の漢字チェックに通るよう、文章は ひらがなだけで書く。
+ * AIが使えないとき用の問題。算数はコードで作り、英語・ひらがなは固定の問題集から出す。
+ * 保育園〜2年生の漢字チェックに通るよう、文章は ひらがなだけで書く。
  * 単元の成績を乱さないよう、unit は "fallback-*" にする。
  */
 export function fallbackQuestion(slot: Slot, grade: number, random: () => number = Math.random): Question {
   const base = { difficulty: slot.difficulty, source: "fallback" as const, speech: "", expression: "" };
-  return slot.subject === "math"
-    ? { ...base, subject: "math", unit: "fallback-math", ...mathQuestion(grade, random) }
-    : { ...base, subject: "english", unit: "fallback-english", ...englishQuestion(grade, random) };
+  switch (slot.subject) {
+    case "math":
+      return { ...base, subject: "math", unit: "fallback-math", ...mathQuestion(grade, random) };
+    case "english":
+      return { ...base, subject: "english", unit: "fallback-english", ...englishQuestion(grade, random) };
+    case "japanese":
+      return { ...base, subject: "japanese", unit: "fallback-japanese", ...hiraganaQuestion(random) };
+  }
 }
 
 type Body = Pick<Question, "format" | "prompt" | "choices" | "answer" | "expression" | "hint" | "explanation"> &
@@ -29,6 +34,7 @@ function numberChoices(answer: number, candidates: number[], random: () => numbe
 }
 
 function mathQuestion(grade: number, random: () => number): Body {
+  if (grade === 0) return random() < 0.6 ? countEmoji(random) : addEmoji(random);
   if (grade <= 1) return random() < 0.5 ? addition(random, 1, 9) : subtraction(random, 11, 18, 1, 9);
   if (grade === 2) {
     const r = random();
@@ -38,6 +44,39 @@ function mathQuestion(grade: number, random: () => number): Body {
   }
   if (grade <= 4) return random() < 0.5 ? multiply2x1(random) : division(random);
   return random() < 0.5 ? decimalTimes(random) : percent(random);
+}
+
+const COUNT_EMOJI = ["🍎", "🐶", "⭐", "🚗", "🌷", "🐟", "🍙", "🎈"];
+
+/** 絵文字を数える（保育園） */
+function countEmoji(random: () => number): Body {
+  const e = pick(random, COUNT_EMOJI);
+  const n = int(random, 2, 9);
+  return {
+    format: "choice",
+    prompt: `${e.repeat(n)}\nいくつ あるかな？ ワン！`,
+    choices: numberChoices(n, [n - 1, n + 1, n + 2], random),
+    answer: String(n),
+    expression: String(n),
+    hint: "ゆびで ひとつずつ さしながら かぞえてみよう！",
+    explanation: `ぜんぶで ${n}こ だよ。`,
+  };
+}
+
+/** 絵文字で あわせて いくつ（保育園・こたえは5まで） */
+function addEmoji(random: () => number): Body {
+  const e = pick(random, COUNT_EMOJI);
+  const a = int(random, 1, 3);
+  const b = int(random, 1, 5 - a);
+  return {
+    format: "choice",
+    prompt: `${e.repeat(a)} と ${e.repeat(b)}\nあわせて いくつ？`,
+    choices: numberChoices(a + b, [a, b, a + b + 1], random),
+    answer: String(a + b),
+    expression: `${a}+${b}`,
+    hint: "ぜんぶ まとめて、はじめから かぞえてみよう！",
+    explanation: `${a}こ と ${b}こ で、あわせて ${a + b}こ だよ。`,
+  };
 }
 
 function addition(random: () => number, min: number, max: number): Body {
@@ -200,5 +239,54 @@ function englishQuestion(grade: number, random: () => number): Body {
     speech: word,
     hint: "その ことばを どんな ときに つかうか そうぞうしてみよう！",
     explanation: `「${word}」は「${meaning}」という いみだよ。`,
+  };
+}
+
+/** かたちの にている ひらがな（保育園の「おなじ もじ」） */
+const SIMILAR_KANA = [
+  ["あ", "お", "め", "ぬ"],
+  ["さ", "ち", "き", "そ"],
+  ["わ", "ね", "れ", "ぬ"],
+  ["は", "ほ", "け", "に"],
+  ["る", "ろ", "そ", "ら"],
+  ["い", "こ", "り", "け"],
+];
+
+/** 絵とことば（保育園の「えと ことば」） */
+const PICTURE_WORDS: [emoji: string, word: string][] = [
+  ["🐶", "いぬ"],
+  ["🐱", "ねこ"],
+  ["🐟", "さかな"],
+  ["🍎", "りんご"],
+  ["🐘", "ぞう"],
+  ["🚗", "くるま"],
+  ["🌙", "つき"],
+  ["🍓", "いちご"],
+];
+
+function hiraganaQuestion(random: () => number): Body {
+  if (random() < 0.5) {
+    const group = pick(random, SIMILAR_KANA);
+    const kana = pick(random, group);
+    return {
+      format: "choice",
+      prompt: `「${kana}」と おなじ もじは どれかな？`,
+      choices: shuffle(group, random),
+      answer: kana,
+      expression: "",
+      hint: "かたちを よーく みて、くらべてみよう！",
+      explanation: `「${kana}」と おなじ かたちの もじは「${kana}」だよ。`,
+    };
+  }
+  const [emoji, word] = pick(random, PICTURE_WORDS);
+  const others = shuffle(PICTURE_WORDS.filter(([, w]) => w !== word), random).slice(0, 3).map(([, w]) => w);
+  return {
+    format: "choice",
+    prompt: `${emoji} これは なあに？`,
+    choices: shuffle([word, ...others], random),
+    answer: word,
+    expression: "",
+    hint: "さいしょの もじの おとを かんがえてみよう！",
+    explanation: `${emoji} は「${word}」だよ。`,
   };
 }

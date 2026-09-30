@@ -21,7 +21,7 @@ export async function createPlayer(_prev: SetupState, formData: FormData): Promi
   const name = validateName(formData.get("name"));
   if (!name.ok) return { error: name.error };
   const grade = parseGrade(formData.get("grade"));
-  if (!grade) return { error: "がくねんを えらんでね" };
+  if (grade === null) return { error: "がくねんを えらんでね" };
 
   const [{ n }] = await db.select({ n: count() }).from(schema.players);
   if (n >= MAX_PLAYERS) return { error: "ぼうけんのしょが いっぱいだよ。おうちの人に きいてね" };
@@ -33,6 +33,7 @@ export async function createPlayer(_prev: SetupState, formData: FormData): Promi
       grade,
       mathLevel: INITIAL_SUBJECT_LEVEL,
       englishLevel: INITIAL_SUBJECT_LEVEL,
+      japaneseLevel: INITIAL_SUBJECT_LEVEL,
     })
     .returning({ id: schema.players.id });
 
