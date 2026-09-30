@@ -12,6 +12,7 @@ import { PRESCHOOL, subjectLabel } from "@/lib/curriculum/units";
 import { hpRatio, stageCleared, stageOf, type Stage } from "@/lib/game/battle";
 import { monstersForQuest, type Monster } from "@/lib/game/monsters";
 import type { PublicQuestion } from "@/lib/game/question";
+import type { ClearReward } from "@/lib/quests";
 
 type Progress = { attempts: number; correct: boolean | null };
 type TodayResponse = {
@@ -29,7 +30,7 @@ type AnswerResponse = (
   | { result: "correct"; firstTry: boolean; explanation: string }
   | { result: "retry"; hint: string }
   | { result: "wrong"; answer: string; explanation: string }
-) & { questCleared: boolean; gems: number; clearBonus: number; balance: number };
+) & { questCleared: boolean; gems: number; clearBonus: number; balance: number; reward: ClearReward | null };
 type Feedback = Exclude<AnswerResponse, { result: "retry" }>;
 
 /** バトル演出の1コマ */
@@ -54,7 +55,7 @@ type Phase =
   /** 演出を順に再生し、終わったら then へ（nextIndex があれば問題も切り替える） */
   | { kind: "sequence"; id: number; steps: Step[]; at: number; then: Phase; nextIndex?: number }
   | { kind: "feedback"; res: Feedback }
-  | { kind: "cleared"; correctCount: number; alreadyDone: boolean; clearBonus: number };
+  | { kind: "cleared"; correctCount: number; alreadyDone: boolean; clearBonus: number; reward: ClearReward | null };
 
 const finished = (p: Progress) => p.correct === true || p.attempts >= 2;
 
@@ -116,7 +117,13 @@ export function QuestPlayer() {
       setHits(data.progress.map(finished));
       const next = data.progress.findIndex((p) => !finished(p));
       if (data.status === "cleared" || next === -1) {
-        setPhase({ kind: "cleared", correctCount: data.progress.filter((p) => p.correct).length, alreadyDone: true, clearBonus: 0 });
+        setPhase({
+          kind: "cleared",
+          correctCount: data.progress.filter((p) => p.correct).length,
+          alreadyDone: true,
+          clearBonus: 0,
+          reward: null,
+        });
       } else {
         setIndex(next);
         setPhase(sequence(appearSteps(data, stageOf(next)), { kind: "question" }));
@@ -252,7 +259,15 @@ export function QuestPlayer() {
     };
     if (allDone) {
       const correctCount = quest.progress.filter((p) => p.correct).length;
-      setPhase(sequence([defeat], { kind: "cleared", correctCount, alreadyDone: false, clearBonus: phase.res.clearBonus }));
+      setPhase(
+        sequence([defeat], {
+          kind: "cleared",
+          correctCount,
+          alreadyDone: false,
+          clearBonus: phase.res.clearBonus,
+          reward: phase.res.reward,
+        }),
+      );
       return;
     }
     setPhase(sequence([defeat, ...appearSteps(quest, stageOf(nextIndex))], { kind: "question" }, nextIndex));
@@ -278,20 +293,40 @@ export function QuestPlayer() {
   if (phase.kind === "cleared") {
     const total = quest.questions.length;
     const left = quest.maxRounds - quest.round;
+    const reward = phase.reward;
     const score = `${total}もん中 ${phase.correctCount}もん せいかい`;
-    const text = phase.alreadyDone
-      ? `${quest.round}かいめの クエストは もう おわったよ！ ${score}。`
-      : `クエスト クリア！ やったね！\n${score}だよ！${phase.clearBonus ? `\nクリアボーナス 💎${phase.clearBonus} Gem！` : ""}`;
+    const lines = phase.alreadyDone
+      ? [`${quest.round}かいめの クエストは もう おわったよ！ ${score}。`]
+      : [
+          `クエスト クリア！ やったね！ ${score}だよ！`,
+          reward?.levelUp ? `レベルアップ！ Lv ${reward.level} に なった！` : "",
+          ...(reward?.subjectUps ?? []).map((s) => `${subjectLabel(s, quest.grade)}の もんだいが すこし むずかしく なるよ！`),
+        ];
+    lines.push(left > 0 ? `きょうは あと ${left}かい あそべるよ。` : "きょうの クエストは ぜんぶ おわり！ また あした あそぼうね。");
     return (
       <Screen
         mood={left > 0 ? (phase.alreadyDone ? "waving" : "love") : "sleepy"}
-        text={left > 0 ? `${text}\nきょうは あと ${left}かい あそべるよ。` : `${text}\nきょうの クエストは ぜんぶ おわり！ また あした あそぼうね。`}
+        text={lines.filter(Boolean).join("\n")}
       >
         <div className="rpg-window grid grid-cols-[1fr_auto] gap-1 p-3 text-lg">
+          {!phase.alreadyDone && phase.clearBonus > 0 && (
+            <>
+              <span>クリアボーナス</span>
+              <span className="text-right text-gem">💎 {phase.clearBonus}</span>
+            </>
+          )}
           <span>もらった Gem</span>
           <span className="text-right text-gem">💎 {quest.gems.earned}</span>
           <span>もっている Gem</span>
           <span className="text-right text-gem">💎 {quest.gems.balance}</span>
+          {reward && (
+            <>
+              <span>もらった EXP</span>
+              <span className="text-right text-ok">+{reward.exp}</span>
+              <span>れんぞく</span>
+              <span className="text-right">🔥 {reward.streakDays}にち</span>
+            </>
+          )}
         </div>
         {left > 0 && (
           <PixelButton variant="accent" onClick={() => void load(true)}>

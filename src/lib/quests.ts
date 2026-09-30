@@ -5,6 +5,8 @@ import { unitsFor, type Subject } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
 import { db, schema } from "@/lib/db";
 import { gemRef, gemsForCorrect, GEM_QUEST_CLEAR } from "@/lib/game/gems";
+import { adjustLevel, LEVEL_WINDOW } from "@/lib/game/level";
+import { applyExp, expForAnswer, EXP_QUEST_CLEAR, nextStreak } from "@/lib/game/rewards";
 import { MAX_QUESTS_PER_DAY, pickUnits, questSubjects, type UnitStats } from "@/lib/game/quest";
 import { isCorrect, type Question } from "@/lib/game/question";
 import { gemBalance, type Player } from "@/lib/players";
@@ -29,6 +31,18 @@ export type AnswerResult = (
   clearBonus: number;
   /** いま持っているGem */
   balance: number;
+  /** この解答でクエストをクリアしたときのごほうび（クリアしていなければ null） */
+  reward: ClearReward | null;
+};
+
+/** クエストクリアのごほうび（Gem以外） */
+export type ClearReward = {
+  exp: number;
+  level: number;
+  levelUp: boolean;
+  streakDays: number;
+  /** むずかしさが上がった科目 */
+  subjectUps: Subject[];
 };
 
 /** 今日いちばん新しい回のクエスト */
@@ -155,7 +169,7 @@ function isFinished(a: AnswerRow): boolean {
   return a.correct === true || a.attempts >= MAX_ATTEMPTS;
 }
 
-type Earned = Pick<AnswerResult, "questCleared" | "gems" | "clearBonus" | "balance">;
+type Earned = Pick<AnswerResult, "questCleared" | "gems" | "clearBonus" | "balance" | "reward">;
 
 /** 答え終わった問題の結果を返す。再送・リロードのときは Gem は 0 */
 function storedResult(q: Question, a: AnswerRow, earned: Earned): AnswerResult {
@@ -184,6 +198,7 @@ export async function submitAnswer(player: Player, index: number, value: string)
         gems: 0,
         clearBonus: 0,
         balance: await gemBalance(player.id),
+        reward: null,
       });
     }
 
@@ -211,39 +226,101 @@ export async function submitAnswer(player: Player, index: number, value: string)
     if (!updated) continue;
 
     if (correct === null) {
-      return { result: "retry", hint: q.hint, questCleared: false, gems: 0, clearBonus: 0, balance: await gemBalance(player.id) };
+      return {
+        result: "retry",
+        hint: q.hint,
+        questCleared: false,
+        gems: 0,
+        clearBonus: 0,
+        balance: await gemBalance(player.id),
+        reward: null,
+      };
     }
 
-    const { cleared, clearBonus } = await clearIfDone(player.id, today.quest.id);
-    return storedResult(q, updated, { questCleared: cleared, gems, clearBonus, balance: await gemBalance(player.id) });
+    const { cleared, clearBonus, reward } = await clearIfDone(player.id, today.quest.id);
+    return storedResult(q, updated, { questCleared: cleared, gems, clearBonus, balance: await gemBalance(player.id), reward });
   }
   throw new Error("解答を保存できませんでした");
 }
 
-/**
- * 全問答え終わっていればクエストをクリアにし、クリアボーナスを付ける。
- * ボーナスは in_progress → cleared に変わった1回だけ（二重付与しない）。
- */
-async function clearIfDone(playerId: number, questId: number): Promise<{ cleared: boolean; clearBonus: number }> {
-  const answers = await db.select().from(schema.answers).where(eq(schema.answers.questId, questId));
-  if (!answers.every(isFinished)) return { cleared: false, clearBonus: 0 };
+const LEVEL_COLUMN = { math: "mathLevel", english: "englishLevel", japanese: "japaneseLevel" } as const;
 
-  const clearBonus = await db.transaction(async (tx) => {
+/**
+ * 全問答え終わっていればクエストをクリアにし、ごほうび（Gem・EXP/Lv・連続日数・科目レベル）を付ける。
+ * ごほうびは in_progress → cleared に変わった1回だけ（二重に付けない）。
+ */
+async function clearIfDone(
+  playerId: number,
+  questId: number,
+): Promise<{ cleared: boolean; clearBonus: number; reward: ClearReward | null }> {
+  const answers = await db.select().from(schema.answers).where(eq(schema.answers.questId, questId));
+  if (!answers.every(isFinished)) return { cleared: false, clearBonus: 0, reward: null };
+
+  return db.transaction(async (tx) => {
     const [cleared] = await tx
       .update(schema.quests)
       .set({ status: "cleared" })
       .where(and(eq(schema.quests.id, questId), eq(schema.quests.status, "in_progress")))
       .returning({ id: schema.quests.id });
-    if (!cleared) return 0;
+    if (!cleared) return { cleared: true, clearBonus: 0, reward: null };
+
     const [bonus] = await tx
       .insert(schema.gemTransactions)
       .values({ playerId, delta: GEM_QUEST_CLEAR, reason: "clear_bonus", refId: gemRef.questClear(questId) })
       .onConflictDoNothing({ target: schema.gemTransactions.refId })
       .returning({ id: schema.gemTransactions.id });
-    // TODO(ステップ5): EXP/Lv・連続日数・科目レベル調整(adjustLevel)もここで行う
-    return bonus ? GEM_QUEST_CLEAR : 0;
+
+    const [player] = await tx.select().from(schema.players).where(eq(schema.players.id, playerId)).for("update");
+
+    // EXP とレベルアップ
+    const exp = answers.reduce((sum, a) => sum + expForAnswer(a.attempts, a.correct), EXP_QUEST_CLEAR);
+    const grown = applyExp(player.playerLevel, player.exp, exp);
+
+    // 連続日数
+    const today = jstDate();
+    const streakDays = nextStreak(player.streakDays, player.lastClearedDate, today);
+
+    // 科目ごとに、直近の正答率でむずかしさを調整する
+    const levelUpdates: Partial<Record<(typeof LEVEL_COLUMN)[Subject], number>> = {};
+    const subjectUps: Subject[] = [];
+    for (const subject of [...new Set(answers.map((a) => a.subject))]) {
+      const recent = await tx
+        .select({ correct: schema.answers.correct })
+        .from(schema.answers)
+        .innerJoin(schema.quests, eq(schema.answers.questId, schema.quests.id))
+        .where(
+          and(
+            eq(schema.quests.playerId, playerId),
+            eq(schema.answers.subject, subject),
+            isNotNull(schema.answers.correct),
+          ),
+        )
+        .orderBy(desc(schema.answers.answeredAt))
+        .limit(LEVEL_WINDOW);
+      const column = LEVEL_COLUMN[subject];
+      const now = player[column];
+      const next = adjustLevel(now, recent.map((r) => r.correct === true));
+      if (next !== now) levelUpdates[column] = next;
+      if (next > now) subjectUps.push(subject);
+    }
+
+    await tx
+      .update(schema.players)
+      .set({
+        playerLevel: grown.level,
+        exp: grown.exp,
+        streakDays,
+        lastClearedDate: today,
+        ...levelUpdates,
+      })
+      .where(eq(schema.players.id, playerId));
+
+    return {
+      cleared: true,
+      clearBonus: bonus ? GEM_QUEST_CLEAR : 0,
+      reward: { exp, level: grown.level, levelUp: grown.level > player.playerLevel, streakDays, subjectUps },
+    };
   });
-  return { cleared: true, clearBonus };
 }
 
 /** そのクエストでもらったGemの合計（正解ぶん＋クリアボーナス） */
