@@ -8,7 +8,13 @@ import { PixelButton, PixelLink } from "@/components/PixelButton";
 import type { PublicQuestion } from "@/lib/game/question";
 
 type Progress = { attempts: number; correct: boolean | null };
-type TodayResponse = { status: "in_progress" | "cleared"; questions: PublicQuestion[]; progress: Progress[] };
+type TodayResponse = {
+  round: number;
+  maxRounds: number;
+  status: "in_progress" | "cleared";
+  questions: PublicQuestion[];
+  progress: Progress[];
+};
 type AnswerResponse = (
   | { result: "correct"; firstTry: boolean; explanation: string }
   | { result: "retry"; hint: string }
@@ -49,15 +55,16 @@ export function QuestPlayer() {
   const [input, setInput] = useState("");
   const loadStarted = useRef(false);
 
-  const load = useCallback(async () => {
+  /** startNext=true なら、クリアしたあとに次の回を始める */
+  const load = useCallback(async (startNext = false) => {
     setPhase({ kind: "loading" });
     try {
-      const res = await fetch("/api/quest/today");
+      const res = startNext ? await fetch("/api/quest/next", { method: "POST" }) : await fetch("/api/quest/today");
       if (!res.ok) throw new Error(String(res.status));
       const data: TodayResponse = await res.json();
       setQuest(data);
       const next = data.progress.findIndex((p) => !finished(p));
-      if (next === -1) {
+      if (data.status === "cleared" || next === -1) {
         setPhase({ kind: "cleared", correctCount: data.progress.filter((p) => p.correct).length, alreadyDone: true });
       } else {
         setIndex(next);
@@ -138,16 +145,24 @@ export function QuestPlayer() {
 
   if (phase.kind === "cleared") {
     const total = quest.questions.length;
+    const left = quest.maxRounds - quest.round;
+    const score = `${total}もん中 ${phase.correctCount}もん せいかい`;
+    const text = phase.alreadyDone
+      ? `${quest.round}かいめの クエストは もう おわったよ！ ${score}。`
+      : `クエスト クリア！ やったね！\n${score}だよ！`;
     return (
       <Screen
-        mood={phase.alreadyDone ? "sleepy" : "love"}
-        text={
-          phase.alreadyDone
-            ? `きょうの クエストは もう おわったよ！\n${total}もん中 ${phase.correctCount}もん せいかい。また あした あそぼうね。`
-            : `クエスト クリア！ やったね！\n${total}もん中 ${phase.correctCount}もん せいかいだよ！`
-        }
+        mood={left > 0 ? (phase.alreadyDone ? "waving" : "love") : "sleepy"}
+        text={left > 0 ? `${text}\nきょうは あと ${left}かい あそべるよ。` : `${text}\nきょうの クエストは ぜんぶ おわり！ また あした あそぼうね。`}
       >
-        <PixelLink href="/home" variant="accent">▶ ホームに もどる</PixelLink>
+        {left > 0 && (
+          <PixelButton variant="accent" onClick={() => void load(true)}>
+            ▶ つぎの クエストへ（{quest.round + 1}かいめ）
+          </PixelButton>
+        )}
+        <PixelLink href="/home" variant={left > 0 ? "default" : "accent"}>
+          ホームに もどる
+        </PixelLink>
       </Screen>
     );
   }
@@ -156,7 +171,7 @@ export function QuestPlayer() {
     <div className="flex items-center justify-between text-lg">
       <Link href="/home" className="text-white/70">◀ ホーム</Link>
       <span>
-        {q.subject === "math" ? "さんすう" : "えいご"}　{index + 1} / {quest.questions.length}
+        {quest.round}かいめ　{q.subject === "math" ? "さんすう" : "えいご"}　{index + 1} / {quest.questions.length}
       </span>
     </div>
   );

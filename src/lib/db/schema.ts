@@ -32,6 +32,8 @@ export const quests = pgTable(
       .references(() => players.id, { onDelete: "cascade" }),
     /** JSTの日付 */
     date: date("date").notNull(),
+    /** その日の何回目のクエストか（1〜MAX_QUESTS_PER_DAY） */
+    round: integer("round").notNull().default(1),
     status: text("status", { enum: ["in_progress", "cleared"] })
       .notNull()
       .default("in_progress"),
@@ -39,7 +41,7 @@ export const quests = pgTable(
     questions: jsonb("questions").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("quests_player_date").on(t.playerId, t.date)],
+  (t) => [uniqueIndex("quests_player_date_round").on(t.playerId, t.date, t.round)],
 );
 
 export const answers = pgTable(

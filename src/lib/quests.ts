@@ -1,10 +1,10 @@
 import "server-only";
-import { and, asc, desc, eq, isNotNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { generateQuestions, type Slot } from "@/lib/ai/generate";
 import { unitsFor, type Subject } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
 import { db, schema } from "@/lib/db";
-import { pickUnits, QUEST_SUBJECTS, type UnitStats } from "@/lib/game/quest";
+import { MAX_QUESTS_PER_DAY, pickUnits, QUEST_SUBJECTS, type UnitStats } from "@/lib/game/quest";
 import { isCorrect, type Question } from "@/lib/game/question";
 import type { Player } from "@/lib/players";
 
@@ -22,11 +22,14 @@ export type AnswerResult = (
   | { result: "wrong"; answer: string; explanation: string }
 ) & { questCleared: boolean };
 
+/** 今日いちばん新しい回のクエスト */
 async function findTodayQuest(playerId: number): Promise<TodayQuest | null> {
   const [quest] = await db
     .select()
     .from(schema.quests)
-    .where(and(eq(schema.quests.playerId, playerId), eq(schema.quests.date, jstDate())));
+    .where(and(eq(schema.quests.playerId, playerId), eq(schema.quests.date, jstDate())))
+    .orderBy(desc(schema.quests.round))
+    .limit(1);
   if (!quest) return null;
   const answers = await db
     .select()
@@ -51,14 +54,14 @@ async function unitStats(playerId: number): Promise<UnitStats> {
   return new Map(rows.map((r) => [r.unit, { total: r.total, correct: r.correct }]));
 }
 
-/** 直近2回ぶんの問題文（同じ問題を出さないため） */
-async function recentPrompts(playerId: number, today: string): Promise<string[]> {
+/** 直近3回ぶんの問題文（同じ日の前の回も含む。同じ問題を出さないため） */
+async function recentPrompts(playerId: number): Promise<string[]> {
   const rows = await db
     .select({ questions: schema.quests.questions })
     .from(schema.quests)
-    .where(and(eq(schema.quests.playerId, playerId), lt(schema.quests.date, today)))
-    .orderBy(desc(schema.quests.date))
-    .limit(2);
+    .where(eq(schema.quests.playerId, playerId))
+    .orderBy(desc(schema.quests.createdAt))
+    .limit(3);
   return rows.flatMap((r) => (r.questions as Question[]).map((q) => q.prompt));
 }
 
@@ -72,15 +75,32 @@ function buildSlots(player: Player, stats: UnitStats): Slot[] {
 }
 
 /**
- * 今日のクエストを返す。まだ無ければAIで問題を作って保存する。
- * 同時に2回呼ばれても、保存されるのは先に終わった1つだけ。
+ * 今日のクエスト（いちばん新しい回）を返す。今日まだ1回も無ければ1回目を作る。
+ * クリア済みでも次の回は作らない（次の回は startNextQuest で始める）。
  */
 export async function getOrCreateTodayQuest(player: Player): Promise<TodayQuest> {
-  const existing = await findTodayQuest(player.id);
-  if (existing) return existing;
+  return (await findTodayQuest(player.id)) ?? createQuest(player, 1);
+}
 
+/**
+ * 次の回のクエストを始める。遊んでいる途中の回があればそれを返す。
+ * 1日 MAX_QUESTS_PER_DAY 回まで。
+ */
+export async function startNextQuest(player: Player): Promise<TodayQuest> {
+  const latest = await findTodayQuest(player.id);
+  if (!latest) return createQuest(player, 1);
+  if (latest.quest.status !== "cleared") return latest;
+  if (latest.quest.round >= MAX_QUESTS_PER_DAY) throw new QuestError("daily_limit");
+  return createQuest(player, latest.quest.round + 1);
+}
+
+/**
+ * AIで問題を作って、その回のクエストを保存する。
+ * 同じ回が同時に2回作られても、保存されるのは先に終わった1つだけ。
+ */
+async function createQuest(player: Player, round: number): Promise<TodayQuest> {
   const today = jstDate();
-  const [stats, recent] = await Promise.all([unitStats(player.id), recentPrompts(player.id, today)]);
+  const [stats, recent] = await Promise.all([unitStats(player.id), recentPrompts(player.id)]);
   const slots = buildSlots(player, stats);
   const { questions, aiCount, rejected, failures } = await generateQuestions({
     grade: player.grade,
@@ -96,8 +116,8 @@ export async function getOrCreateTodayQuest(player: Player): Promise<TodayQuest>
   await db.transaction(async (tx) => {
     const [quest] = await tx
       .insert(schema.quests)
-      .values({ playerId: player.id, date: today, questions })
-      .onConflictDoNothing({ target: [schema.quests.playerId, schema.quests.date] })
+      .values({ playerId: player.id, date: today, round, questions })
+      .onConflictDoNothing({ target: [schema.quests.playerId, schema.quests.date, schema.quests.round] })
       .returning();
     if (!quest) return;
     await tx.insert(schema.answers).values(
@@ -127,12 +147,12 @@ function storedResult(q: Question, a: AnswerRow, questCleared: boolean): AnswerR
 }
 
 export class QuestError extends Error {
-  constructor(public code: "no_quest" | "bad_index") {
+  constructor(public code: "no_quest" | "bad_index" | "daily_limit") {
     super(code);
   }
 }
 
-/** 今日のクエストの1問に答える。採点はサーバーだけで行う */
+/** 今日のいまの回のクエストの1問に答える。採点はサーバーだけで行う */
 export async function submitAnswer(player: Player, index: number, value: string): Promise<AnswerResult> {
   for (let retry = 0; retry < 3; retry++) {
     const today = await findTodayQuest(player.id);
