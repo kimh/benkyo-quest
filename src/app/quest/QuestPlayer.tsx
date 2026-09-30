@@ -14,12 +14,14 @@ type TodayResponse = {
   status: "in_progress" | "cleared";
   questions: PublicQuestion[];
   progress: Progress[];
+  /** balance=持っているGem、earned=この回でもらったGem */
+  gems: { balance: number; earned: number };
 };
 type AnswerResponse = (
   | { result: "correct"; firstTry: boolean; explanation: string }
   | { result: "retry"; hint: string }
   | { result: "wrong"; answer: string; explanation: string }
-) & { questCleared: boolean };
+) & { questCleared: boolean; gems: number; clearBonus: number; balance: number };
 
 type Phase =
   | { kind: "loading" }
@@ -27,7 +29,7 @@ type Phase =
   | { kind: "question"; hint?: string }
   | { kind: "sending" }
   | { kind: "feedback"; res: Exclude<AnswerResponse, { result: "retry" }> }
-  | { kind: "cleared"; correctCount: number; alreadyDone: boolean };
+  | { kind: "cleared"; correctCount: number; alreadyDone: boolean; clearBonus: number };
 
 const finished = (p: Progress) => p.correct === true || p.attempts >= 2;
 
@@ -65,7 +67,7 @@ export function QuestPlayer() {
       setQuest(data);
       const next = data.progress.findIndex((p) => !finished(p));
       if (data.status === "cleared" || next === -1) {
-        setPhase({ kind: "cleared", correctCount: data.progress.filter((p) => p.correct).length, alreadyDone: true });
+        setPhase({ kind: "cleared", correctCount: data.progress.filter((p) => p.correct).length, alreadyDone: true, clearBonus: 0 });
       } else {
         setIndex(next);
         setPhase({ kind: "question" });
@@ -107,7 +109,8 @@ export function QuestPlayer() {
       }
       const progress = [...quest.progress];
       progress[index] = { attempts: progress[index].attempts + 1, correct: data.result === "correct" };
-      setQuest({ ...quest, progress });
+      const gems = { balance: data.balance, earned: quest.gems.earned + data.gems + data.clearBonus };
+      setQuest({ ...quest, progress, gems });
       setPhase({ kind: "feedback", res: data });
     } catch {
       setPhase({ kind: "question" });
@@ -118,7 +121,12 @@ export function QuestPlayer() {
   function next() {
     if (!quest || phase.kind !== "feedback") return;
     if (phase.res.questCleared || quest.progress.every(finished)) {
-      setPhase({ kind: "cleared", correctCount: quest.progress.filter((p) => p.correct).length, alreadyDone: false });
+      setPhase({
+        kind: "cleared",
+        correctCount: quest.progress.filter((p) => p.correct).length,
+        alreadyDone: false,
+        clearBonus: phase.res.clearBonus,
+      });
       return;
     }
     const n = quest.progress.findIndex((p, i) => i > index && !finished(p));
@@ -149,12 +157,18 @@ export function QuestPlayer() {
     const score = `${total}もん中 ${phase.correctCount}もん せいかい`;
     const text = phase.alreadyDone
       ? `${quest.round}かいめの クエストは もう おわったよ！ ${score}。`
-      : `クエスト クリア！ やったね！\n${score}だよ！`;
+      : `クエスト クリア！ やったね！\n${score}だよ！${phase.clearBonus ? `\nクリアボーナス 💎${phase.clearBonus} Gem！` : ""}`;
     return (
       <Screen
         mood={left > 0 ? (phase.alreadyDone ? "waving" : "love") : "sleepy"}
         text={left > 0 ? `${text}\nきょうは あと ${left}かい あそべるよ。` : `${text}\nきょうの クエストは ぜんぶ おわり！ また あした あそぼうね。`}
       >
+        <div className="rpg-window grid grid-cols-[1fr_auto] gap-1 p-3 text-lg">
+          <span>もらった Gem</span>
+          <span className="text-right text-gem">💎 {quest.gems.earned}</span>
+          <span>もっている Gem</span>
+          <span className="text-right text-gem">💎 {quest.gems.balance}</span>
+        </div>
         {left > 0 && (
           <PixelButton variant="accent" onClick={() => void load(true)}>
             ▶ つぎの クエストへ（{quest.round + 1}かいめ）
@@ -173,6 +187,7 @@ export function QuestPlayer() {
       <span>
         {quest.round}かいめ　{q.subject === "math" ? "さんすう" : "えいご"}　{index + 1} / {quest.questions.length}
       </span>
+      <span className="text-gem">💎 {quest.gems.balance}</span>
     </div>
   );
 
@@ -180,7 +195,7 @@ export function QuestPlayer() {
     const r = phase.res;
     const text =
       r.result === "correct"
-        ? `せいかい！ ${r.firstTry ? "すごい！" : "よく がんばったね！"}\n${r.explanation}`
+        ? `せいかい！ ${r.firstTry ? "すごい！" : "よく がんばったね！"}${r.gems ? ` 💎+${r.gems}` : ""}\n${r.explanation}`
         : `ざんねん… こたえは「${r.answer}」だよ。\n${r.explanation}`;
     return (
       <>

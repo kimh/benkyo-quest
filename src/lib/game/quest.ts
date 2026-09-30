@@ -3,7 +3,7 @@ import type { Subject, Unit } from "@/lib/curriculum/units";
 export type StageKind = "minion" | "boss";
 
 /** 1日に遊べるクエストの回数 */
-export const MAX_QUESTS_PER_DAY = 10;
+export const MAX_QUESTS_PER_DAY = 3;
 
 /** 1日のクエストの構成：雑魚3体＋ボス。合計10問 */
 export const QUEST_STAGES: { kind: StageKind; subjects: Subject[] }[] = [

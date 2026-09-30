@@ -1,12 +1,13 @@
 import "server-only";
-import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { generateQuestions, type Slot } from "@/lib/ai/generate";
 import { unitsFor, type Subject } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
 import { db, schema } from "@/lib/db";
+import { gemRef, gemsForCorrect, GEM_QUEST_CLEAR } from "@/lib/game/gems";
 import { MAX_QUESTS_PER_DAY, pickUnits, QUEST_SUBJECTS, type UnitStats } from "@/lib/game/quest";
 import { isCorrect, type Question } from "@/lib/game/question";
-import type { Player } from "@/lib/players";
+import { gemBalance, type Player } from "@/lib/players";
 
 export type Quest = typeof schema.quests.$inferSelect;
 export type AnswerRow = typeof schema.answers.$inferSelect;
@@ -20,7 +21,15 @@ export type AnswerResult = (
   | { result: "correct"; firstTry: boolean; explanation: string }
   | { result: "retry"; hint: string }
   | { result: "wrong"; answer: string; explanation: string }
-) & { questCleared: boolean };
+) & {
+  questCleared: boolean;
+  /** この解答でもらったGem（正解ぶん） */
+  gems: number;
+  /** この解答でクエストをクリアしてもらったボーナスGem */
+  clearBonus: number;
+  /** いま持っているGem */
+  balance: number;
+};
 
 /** 今日いちばん新しい回のクエスト */
 async function findTodayQuest(playerId: number): Promise<TodayQuest | null> {
@@ -139,11 +148,13 @@ function isFinished(a: AnswerRow): boolean {
   return a.correct === true || a.attempts >= MAX_ATTEMPTS;
 }
 
-/** 答え終わった問題の結果をもう一度返す（二重送信・リロード用） */
-function storedResult(q: Question, a: AnswerRow, questCleared: boolean): AnswerResult {
+type Earned = Pick<AnswerResult, "questCleared" | "gems" | "clearBonus" | "balance">;
+
+/** 答え終わった問題の結果を返す。再送・リロードのときは Gem は 0 */
+function storedResult(q: Question, a: AnswerRow, earned: Earned): AnswerResult {
   return a.correct
-    ? { result: "correct", firstTry: a.attempts === 1, explanation: q.explanation, questCleared }
-    : { result: "wrong", answer: q.answer, explanation: q.explanation, questCleared };
+    ? { result: "correct", firstTry: a.attempts === 1, explanation: q.explanation, ...earned }
+    : { result: "wrong", answer: q.answer, explanation: q.explanation, ...earned };
 }
 
 export class QuestError extends Error {
@@ -152,7 +163,7 @@ export class QuestError extends Error {
   }
 }
 
-/** 今日のいまの回のクエストの1問に答える。採点はサーバーだけで行う */
+/** 今日のいまの回のクエストの1問に答える。採点とGemの付与はサーバーだけで行う */
 export async function submitAnswer(player: Player, index: number, value: string): Promise<AnswerResult> {
   for (let retry = 0; retry < 3; retry++) {
     const today = await findTodayQuest(player.id);
@@ -160,39 +171,80 @@ export async function submitAnswer(player: Player, index: number, value: string)
     const q = today.questions[index];
     const a = today.answers.find((r) => r.questionIndex === index);
     if (!q || !a) throw new QuestError("bad_index");
-    if (isFinished(a)) return storedResult(q, a, today.quest.status === "cleared");
+    if (isFinished(a)) {
+      return storedResult(q, a, {
+        questCleared: today.quest.status === "cleared",
+        gems: 0,
+        clearBonus: 0,
+        balance: await gemBalance(player.id),
+      });
+    }
 
     const ok = isCorrect(q, value);
     const attempts = a.attempts + 1;
     const correct = ok ? true : attempts >= MAX_ATTEMPTS ? false : null;
-    const [updated] = await db
-      .update(schema.answers)
-      .set({ attempts, correct, answeredAt: correct === null ? null : new Date() })
-      // 同時に送られたときは先に着いた方だけ採用する
-      .where(and(eq(schema.answers.id, a.id), eq(schema.answers.attempts, a.attempts)))
-      .returning();
+    const gems = ok ? gemsForCorrect(attempts === 1) : 0;
+
+    // 解答の保存とGemの付与は一緒に行う（片方だけ残らないように）
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(schema.answers)
+        .set({ attempts, correct, answeredAt: correct === null ? null : new Date() })
+        // 同時に送られたときは先に着いた方だけ採用する
+        .where(and(eq(schema.answers.id, a.id), eq(schema.answers.attempts, a.attempts)))
+        .returning();
+      if (row && gems > 0) {
+        await tx
+          .insert(schema.gemTransactions)
+          .values({ playerId: player.id, delta: gems, reason: "correct", refId: gemRef.answer(a.id) })
+          .onConflictDoNothing({ target: schema.gemTransactions.refId });
+      }
+      return row;
+    });
     if (!updated) continue;
 
-    if (correct === null) return { result: "retry", hint: q.hint, questCleared: false };
+    if (correct === null) {
+      return { result: "retry", hint: q.hint, questCleared: false, gems: 0, clearBonus: 0, balance: await gemBalance(player.id) };
+    }
 
-    const questCleared = await clearIfDone(today.quest.id);
-    return storedResult(q, updated, questCleared);
+    const { cleared, clearBonus } = await clearIfDone(player.id, today.quest.id);
+    return storedResult(q, updated, { questCleared: cleared, gems, clearBonus, balance: await gemBalance(player.id) });
   }
   throw new Error("解答を保存できませんでした");
 }
 
-/** 全問答え終わっていればクエストをクリアにする。クリア済みなら true */
-async function clearIfDone(questId: number): Promise<boolean> {
+/**
+ * 全問答え終わっていればクエストをクリアにし、クリアボーナスを付ける。
+ * ボーナスは in_progress → cleared に変わった1回だけ（二重付与しない）。
+ */
+async function clearIfDone(playerId: number, questId: number): Promise<{ cleared: boolean; clearBonus: number }> {
   const answers = await db.select().from(schema.answers).where(eq(schema.answers.questId, questId));
-  if (!answers.every(isFinished)) return false;
-  const [cleared] = await db
-    .update(schema.quests)
-    .set({ status: "cleared" })
-    .where(and(eq(schema.quests.id, questId), eq(schema.quests.status, "in_progress")))
-    .returning({ id: schema.quests.id });
-  if (cleared) {
-    // TODO(ステップ5): ここでクリア報酬を付与する（Gem ledger・EXP/Lv・連続日数・科目レベル調整 adjustLevel）。
-    // 付与は この「in_progress → cleared に変わった1回」だけで行うこと（二重付与防止）。
-  }
-  return true;
+  if (!answers.every(isFinished)) return { cleared: false, clearBonus: 0 };
+
+  const clearBonus = await db.transaction(async (tx) => {
+    const [cleared] = await tx
+      .update(schema.quests)
+      .set({ status: "cleared" })
+      .where(and(eq(schema.quests.id, questId), eq(schema.quests.status, "in_progress")))
+      .returning({ id: schema.quests.id });
+    if (!cleared) return 0;
+    const [bonus] = await tx
+      .insert(schema.gemTransactions)
+      .values({ playerId, delta: GEM_QUEST_CLEAR, reason: "clear_bonus", refId: gemRef.questClear(questId) })
+      .onConflictDoNothing({ target: schema.gemTransactions.refId })
+      .returning({ id: schema.gemTransactions.id });
+    // TODO(ステップ5): EXP/Lv・連続日数・科目レベル調整(adjustLevel)もここで行う
+    return bonus ? GEM_QUEST_CLEAR : 0;
+  });
+  return { cleared: true, clearBonus };
+}
+
+/** そのクエストでもらったGemの合計（正解ぶん＋クリアボーナス） */
+export async function questGems(questId: number, answerIds: number[]): Promise<number> {
+  const refs = [gemRef.questClear(questId), ...answerIds.map(gemRef.answer)];
+  const [r] = await db
+    .select({ total: sql<number>`coalesce(sum(${schema.gemTransactions.delta}), 0)::int` })
+    .from(schema.gemTransactions)
+    .where(inArray(schema.gemTransactions.refId, refs));
+  return r?.total ?? 0;
 }

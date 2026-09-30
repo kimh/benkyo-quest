@@ -10,5 +10,5 @@ export async function GET() {
   const player = await currentPlayer();
   if (!player) return Response.json({ error: "no_player" }, { status: 401 });
 
-  return Response.json(questPayload(await getOrCreateTodayQuest(player)));
+  return Response.json(await questPayload(await getOrCreateTodayQuest(player)));
 }
