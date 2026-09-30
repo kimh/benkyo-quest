@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Knock } from "@/components/Knock";
 import { MessageWindow } from "@/components/MessageWindow";
-import { PixelButton } from "@/components/PixelButton";
+import { PixelButton, PixelLink } from "@/components/PixelButton";
 import { jstDate } from "@/lib/date";
 import { currentStreak, expToNextLevel } from "@/lib/game/player";
 import { currentPlayer, gemBalance } from "@/lib/players";
@@ -41,10 +41,10 @@ export default async function HomePage() {
       </div>
 
       <nav className="flex flex-col gap-3">
-        {/* クエストとGem交換は次のステップで実装 */}
-        <PixelButton variant="accent" disabled>
-          ⚔ きょうの クエスト（じゅんびちゅう）
-        </PixelButton>
+        <PixelLink href="/quest" variant="accent">
+          ⚔ きょうの クエスト
+        </PixelLink>
+        {/* Gem交換はステップ5で実装 */}
         <PixelButton disabled>💎 Gem こうかん（じゅんびちゅう）</PixelButton>
       </nav>
     </main>
