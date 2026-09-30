@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #10102a;
+  --fg: #ffffff;
+  --window: #000058;
+  --window-border: #ffffff;
+  --accent: #f8d030;
+  --gem: #58d8f8;
+  --danger: #f85858;
+  --ok: #58f898;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-window: var(--window);
+  --color-accent: var(--accent);
+  --color-gem: var(--gem);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --font-dot: var(--font-dot);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-dot), monospace;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* ドット絵をぼかさず拡大 */
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* RPG風メッセージウィンドウの二重枠（utilityで枠色を上書きできるよう components レイヤーに置く） */
+@layer components {
+  .rpg-window {
+    background: var(--window);
+    border: 4px solid var(--window-border);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 4px var(--window),
+      inset 0 0 0 2px var(--window);
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+.blink {
+  animation: blink 1s steps(1) infinite;
+}
