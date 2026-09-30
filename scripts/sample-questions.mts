@@ -1,0 +1,41 @@
+/**
+ * AIの問題の品質確認用。指定した学年で1回ぶんの問題を作って表示する（DBには保存しない）。
+ * 使い方: npm run sample -- 2
+ */
+import { generateQuestions } from "@/lib/ai/generate";
+import { unitsFor, type Subject } from "@/lib/curriculum/units";
+import { INITIAL_SUBJECT_LEVEL, parseGrade } from "@/lib/game/player";
+import { pickUnits, QUEST_SUBJECTS } from "@/lib/game/quest";
+import { validateQuestion } from "@/lib/game/question";
+
+const grade = parseGrade(process.argv[2] ?? "2");
+if (!grade) throw new Error("学年は 1〜6 で指定してください");
+const level = Number(process.argv[3] ?? INITIAL_SUBJECT_LEVEL);
+
+const count = (s: Subject) => QUEST_SUBJECTS.filter((x) => x === s).length;
+const picked = {
+  math: pickUnits(unitsFor(grade, "math"), new Map(), count("math")),
+  english: pickUnits(unitsFor(grade, "english"), new Map(), count("english")),
+};
+const slots = QUEST_SUBJECTS.map((subject) => ({ subject, unit: picked[subject].shift()!, difficulty: level }));
+
+const started = Date.now();
+const result = await generateQuestions({ grade, levels: { math: level, english: level }, slots, recentPrompts: [] });
+const seconds = ((Date.now() - started) / 1000).toFixed(1);
+
+console.log(`# ${grade}年生 / レベル${level}: ${seconds}秒, リクエスト${result.requests}回, AI ${result.aiCount}/${slots.length}問\n`);
+result.questions.forEach((q, i) => {
+  console.log(`[${i}] ${q.subject} ${q.unit} (${q.format}, ${q.source})`);
+  console.log(`  問題: ${q.prompt}`);
+  if (q.choices.length) console.log(`  選択肢: ${q.choices.join(" / ")}`);
+  console.log(`  正解: ${q.answer}${q.expression ? `  (式: ${q.expression})` : ""}${q.speech ? `  読み上げ: "${q.speech}"` : ""}`);
+  console.log(`  ヒント: ${q.hint}`);
+  console.log(`  解説: ${q.explanation}`);
+  const errors = validateQuestion(q, grade);
+  if (errors.length) console.log(`  ⚠ ${errors.join(", ")}`);
+});
+if (result.rejected.length) {
+  console.log("\n# 検証で落ちた問題");
+  for (const r of result.rejected) console.log(`- slot ${r.slot}: ${r.prompt}\n    ${r.errors.join(", ")}`);
+}
+if (result.failures.length) console.log("\n# APIの失敗\n" + result.failures.map((f) => `- ${f}`).join("\n"));
