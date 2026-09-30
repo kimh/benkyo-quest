@@ -16,4 +16,4 @@ npm run dev
 
 ## 素材
 
-- ノック: `public/assets/knock/*.svg`（10表情: neutral / waving / cheering / love / winking / confused / surprised / angry / crying / sleepy）。使い分けは `src/components/Knock.tsx` 参照
+- ノック: `public/assets/knock/*.png`（308×429の透過PNG・10表情: neutral / waving / cheering / love / winking / confused / surprised / angry / crying / sleepy）。使い分けは `src/components/Knock.tsx` 参照

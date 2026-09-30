@@ -1,5 +1,5 @@
 /**
- * マスコットのノックの表情。public/assets/knock/{mood}.svg に対応する。
+ * マスコットのノックの表情。public/assets/knock/{mood}.png（308×429・足元を下中央にそろえた透過PNG）に対応する。
  *
  * ゲーム内での使い分け:
  * - neutral   … 出題
@@ -27,23 +27,23 @@ export type KnockMood =
 
 type Props = {
   mood?: KnockMood;
-  /** 表示する高さ(px)。幅は元画像の比率(153:256)に合わせる */
+  /** 表示する高さ(px)。幅は元画像の比率(308:429)に合わせる */
   height?: number;
   className?: string;
 };
 
-const ASPECT = 153 / 256;
+const ASPECT = 308 / 429;
 
 export function Knock({ mood = "neutral", height = 192, className = "" }: Props) {
   return (
-    // SVGなので next/image の最適化は不要
+    // 表情の切り替えで一瞬消えないよう、最適化なしの <img> で直接読む
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`/assets/knock/${mood}.svg`}
+      src={`/assets/knock/${mood}.png`}
       alt="ノック"
       width={Math.round(height * ASPECT)}
       height={height}
-      className={`pixelated select-none ${className}`}
+      className={`select-none ${className}`}
       draggable={false}
     />
   );
