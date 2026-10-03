@@ -3,6 +3,8 @@ import { frequency, length, type Note, type Song } from "./songs";
 const LOOKAHEAD_SEC = 0.15;
 const TICK_MS = 25;
 const MASTER_VOLUME = 0.07;
+/** 読み上げ中は、声が聞こえるようにBGMをこの割合まで下げる */
+const DUCKED_RATIO = 0.15;
 
 /** 25%パルス波（ファミコン風の音色） */
 function pulseWave(ctx: AudioContext, duty = 0.25): PeriodicWave {
@@ -31,12 +33,24 @@ export class BgmPlayer {
   private master: GainNode | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private voices: Voice[] = [];
+  private ducked = false;
 
   constructor(private song: Song) {}
 
   /** 効果音からも同じ AudioContext を使う（iOSでは1つにしないと鳴らないことがある） */
   get context(): AudioContext | null {
     return this.ctx;
+  }
+
+  private get volume() {
+    return this.ducked ? MASTER_VOLUME * DUCKED_RATIO : MASTER_VOLUME;
+  }
+
+  /** 読み上げ中はBGMを小さくする */
+  setDucked(ducked: boolean) {
+    if (ducked === this.ducked) return;
+    this.ducked = ducked;
+    if (this.ctx && this.master) this.master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.08);
   }
 
   get playing() {
@@ -59,7 +73,7 @@ export class BgmPlayer {
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new Ctx();
       this.master = this.ctx.createGain();
-      this.master.gain.value = MASTER_VOLUME;
+      this.master.gain.value = this.volume;
       this.master.connect(this.ctx.destination);
     }
     void this.ctx.resume();
@@ -75,7 +89,7 @@ export class BgmPlayer {
     if (this.ctx && this.master) {
       this.master.disconnect();
       this.master = this.ctx.createGain();
-      this.master.gain.value = MASTER_VOLUME;
+      this.master.gain.value = this.volume;
       this.master.connect(this.ctx.destination);
     }
   }
