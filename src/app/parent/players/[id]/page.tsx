@@ -2,12 +2,14 @@ import { notFound } from "next/navigation";
 import { PixelButton, PixelLink } from "@/components/PixelButton";
 import { findEikenUnit } from "@/lib/curriculum/eiken";
 import { findUnit, gradeLabel, subjectsFor, type Subject } from "@/lib/curriculum/units";
+import { jstDate } from "@/lib/date";
 import { MAX_SUBJECT_LEVEL, MIN_SUBJECT_LEVEL } from "@/lib/game/level";
-import { playerStats, requireParent } from "@/lib/parent";
+import { MAX_QUESTS_PER_DAY, maxRoundsToday } from "@/lib/game/quest";
+import { playerStats, requireParent, todayRounds } from "@/lib/parent";
 import { getPlayer } from "@/lib/players";
 import { subjectLevels } from "@/lib/quests";
 import { redeemSummary } from "@/lib/redemptions";
-import { updateLevel } from "../../actions";
+import { resetRounds, updateLevel } from "../../actions";
 import { EnglishCourseForm } from "./EnglishCourseForm";
 
 const SUBJECT_NAME: Record<Subject, string> = { math: "算数", english: "英語", japanese: "ひらがな" };
@@ -34,7 +36,12 @@ export default async function ParentPlayerPage({ params }: PageProps<"/parent/pl
   const player = await getPlayer(Number(id));
   if (!player) notFound();
 
-  const [stats, { balance, requests }] = await Promise.all([playerStats(player.id), redeemSummary(player.id)]);
+  const [stats, { balance, requests }, played] = await Promise.all([
+    playerStats(player.id),
+    redeemSummary(player.id),
+    todayRounds(player.id),
+  ]);
+  const maxRounds = maxRoundsToday(player, jstDate());
   const levels = subjectLevels(player);
   const subjects = subjectsFor(player.grade);
 
@@ -47,6 +54,20 @@ export default async function ParentPlayerPage({ params }: PageProps<"/parent/pl
         <span className="text-right">{gradeLabel(player.grade)}</span>
         <span>Lv {player.playerLevel}</span>
         <span className="text-right text-gem">💎 {balance}</span>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-lg text-accent">きょうのクエスト</h2>
+        <form action={resetRounds} className="rpg-window flex items-center justify-between gap-3 p-3">
+          <input type="hidden" name="playerId" value={player.id} />
+          <span>
+            {played} / {maxRounds} 回
+          </span>
+          <PixelButton type="submit" className="min-h-10 px-3 py-1 text-base" disabled={played < maxRounds}>
+            回数をリセット
+          </PixelButton>
+        </form>
+        <p className="text-sm text-white/70">リセットすると、きょうはあと{MAX_QUESTS_PER_DAY}回遊べます。これまでの記録は消えません。</p>
       </section>
 
       {subjects.includes("english") && (

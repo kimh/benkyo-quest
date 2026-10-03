@@ -7,7 +7,14 @@ import { parseEikenGrade } from "@/lib/curriculum/eiken";
 import type { Subject } from "@/lib/curriculum/units";
 import { parseGemSettings } from "@/lib/game/gems";
 import { parseSubjectLevel } from "@/lib/game/level";
-import { approveRedemption, rejectRedemption, requireParent, setEikenGrade, setSubjectLevel } from "@/lib/parent";
+import {
+  approveRedemption,
+  rejectRedemption,
+  requireParent,
+  resetTodayRounds,
+  setEikenGrade,
+  setSubjectLevel,
+} from "@/lib/parent";
 import { getPlayer } from "@/lib/players";
 import { PARENT_COOKIE } from "@/lib/session";
 import { saveGemSettings } from "@/lib/settings";
@@ -56,6 +63,14 @@ export async function updateEnglishCourse(formData: FormData): Promise<void> {
   if (!player || (course !== "school" && !eiken)) return;
   await setEikenGrade(player.id, eiken);
   revalidatePath("/parent", "layout");
+}
+
+export async function resetRounds(formData: FormData): Promise<void> {
+  await requireParent();
+  const player = await getPlayer(Number(formData.get("playerId")));
+  if (!player) return;
+  await resetTodayRounds(player.id);
+  revalidatePath(`/parent/players/${player.id}`);
 }
 
 export async function logout(): Promise<void> {

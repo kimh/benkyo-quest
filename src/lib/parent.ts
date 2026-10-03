@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import type { EikenGrade } from "@/lib/curriculum/eiken";
 import type { Subject } from "@/lib/curriculum/units";
 import { db, schema } from "@/lib/db";
+import { jstDate } from "@/lib/date";
 import { gemRef } from "@/lib/game/gems";
+import { bonusRoundsForReset } from "@/lib/game/quest";
 import { INITIAL_SUBJECT_LEVEL } from "@/lib/game/player";
 import { isValidParentToken, PARENT_COOKIE } from "@/lib/session";
 
@@ -137,4 +139,22 @@ export async function setEikenGrade(playerId: number, eikenGrade: EikenGrade | n
     .update(schema.players)
     .set({ eikenGrade, englishLevel: INITIAL_SUBJECT_LEVEL })
     .where(and(eq(schema.players.id, playerId), sql`${schema.players.eikenGrade} is distinct from ${eikenGrade}`));
+}
+
+/** 今日遊んだ回数（いちばん新しい回の番号） */
+export async function todayRounds(playerId: number): Promise<number> {
+  const [row] = await db
+    .select({ round: sql<number>`coalesce(max(${schema.quests.round}), 0)::int` })
+    .from(schema.quests)
+    .where(and(eq(schema.quests.playerId, playerId), eq(schema.quests.date, jstDate())));
+  return row?.round ?? 0;
+}
+
+/** 今日のクエストの回数をリセットして、また MAX_QUESTS_PER_DAY 回遊べるようにする（記録は消さない） */
+export async function resetTodayRounds(playerId: number): Promise<void> {
+  const played = await todayRounds(playerId);
+  await db
+    .update(schema.players)
+    .set({ bonusRoundsDate: jstDate(), bonusRounds: bonusRoundsForReset(played) })
+    .where(eq(schema.players.id, playerId));
 }

@@ -11,7 +11,7 @@ export async function POST() {
   if (!player) return Response.json({ error: "no_player" }, { status: 401 });
 
   try {
-    return Response.json(await questPayload(await startNextQuest(player), player.grade));
+    return Response.json(await questPayload(await startNextQuest(player), player));
   } catch (e) {
     if (e instanceof QuestError && e.code === "daily_limit") {
       return Response.json({ error: e.code }, { status: 409 });

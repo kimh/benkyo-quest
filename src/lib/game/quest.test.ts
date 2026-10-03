@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { unitsFor } from "@/lib/curriculum/units";
 import { adjustLevel, parseSubjectLevel } from "./level";
-import { pickUnits, QUEST_STAGES, QUEST_SUBJECTS, questSubjects } from "./quest";
+import {
+  bonusRoundsForReset,
+  MAX_QUESTS_PER_DAY,
+  maxRoundsToday,
+  pickUnits,
+  QUEST_STAGES,
+  QUEST_SUBJECTS,
+  questSubjects,
+} from "./quest";
 
 describe("QUEST_SUBJECTS", () => {
   it("1日10問", () => {
@@ -68,5 +76,17 @@ describe("questSubjects", () => {
     expect(subjects.filter((s) => s === "japanese")).toHaveLength(7);
     expect(subjects.filter((s) => s === "math")).toHaveLength(3);
     expect(QUEST_STAGES.reduce((n, s) => n + s.subjects.length, 0)).toBe(subjects.length);
+  });
+});
+
+describe("maxRoundsToday", () => {
+  it("リセットした日だけ回数が増える", () => {
+    expect(maxRoundsToday({ bonusRoundsDate: null, bonusRounds: 0 }, "2026-10-03")).toBe(MAX_QUESTS_PER_DAY);
+    expect(maxRoundsToday({ bonusRoundsDate: "2026-10-03", bonusRounds: 3 }, "2026-10-03")).toBe(MAX_QUESTS_PER_DAY + 3);
+    expect(maxRoundsToday({ bonusRoundsDate: "2026-10-02", bonusRounds: 3 }, "2026-10-03")).toBe(MAX_QUESTS_PER_DAY);
+  });
+  it("3回遊んでからリセットすると、あと3回遊べる", () => {
+    const max = maxRoundsToday({ bonusRoundsDate: "2026-10-03", bonusRounds: bonusRoundsForReset(3) }, "2026-10-03");
+    expect(max - 3).toBe(MAX_QUESTS_PER_DAY);
   });
 });

@@ -5,6 +5,19 @@ export type StageKind = "minion" | "boss";
 /** 1日に遊べるクエストの回数 */
 export const MAX_QUESTS_PER_DAY = 3;
 
+/** 今日遊べる回数。保護者がリセットした日は、そのぶん増える */
+export function maxRoundsToday(
+  player: { bonusRoundsDate: string | null; bonusRounds: number },
+  today: string,
+): number {
+  return MAX_QUESTS_PER_DAY + (player.bonusRoundsDate === today ? player.bonusRounds : 0);
+}
+
+/** 回数をリセットしたときの、今日足す回数（いま遊んだ回のぶんだけ足して、また MAX 回遊べるようにする） */
+export function bonusRoundsForReset(playedRounds: number): number {
+  return Math.max(0, playedRounds);
+}
+
 /** 1日のクエストの構成：雑魚3体＋ボス。合計10問 */
 export const QUEST_STAGES: { kind: StageKind; subjects: Subject[] }[] = [
   { kind: "minion", subjects: ["math", "math", "math"] },

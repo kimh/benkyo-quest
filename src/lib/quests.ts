@@ -8,7 +8,7 @@ import { db, schema } from "@/lib/db";
 import { gemRef, gemsForCorrect, type GemSettings } from "@/lib/game/gems";
 import { adjustLevel, LEVEL_WINDOW } from "@/lib/game/level";
 import { applyExp, expForAnswer, EXP_QUEST_CLEAR, nextStreak } from "@/lib/game/rewards";
-import { MAX_QUESTS_PER_DAY, pickUnits, questSubjects, type UnitStats } from "@/lib/game/quest";
+import { maxRoundsToday, pickUnits, questSubjects, type UnitStats } from "@/lib/game/quest";
 import { isCorrect, type Question } from "@/lib/game/question";
 import { gemBalance, type Player } from "@/lib/players";
 import { getGemSettings } from "@/lib/settings";
@@ -48,7 +48,7 @@ export type ClearReward = {
 };
 
 /** 今日いちばん新しい回のクエスト */
-async function findTodayQuest(playerId: number): Promise<TodayQuest | null> {
+export async function findTodayQuest(playerId: number): Promise<TodayQuest | null> {
   const [quest] = await db
     .select()
     .from(schema.quests)
@@ -119,13 +119,13 @@ export async function getOrCreateTodayQuest(player: Player): Promise<TodayQuest>
 
 /**
  * 次の回のクエストを始める。遊んでいる途中の回があればそれを返す。
- * 1日 MAX_QUESTS_PER_DAY 回まで。
+ * 1日 MAX_QUESTS_PER_DAY 回まで（保護者がリセットした日は、そのぶん増える）。
  */
 export async function startNextQuest(player: Player): Promise<TodayQuest> {
   const latest = await findTodayQuest(player.id);
   if (!latest) return createQuest(player, 1);
   if (latest.quest.status !== "cleared") return latest;
-  if (latest.quest.round >= MAX_QUESTS_PER_DAY) throw new QuestError("daily_limit");
+  if (latest.quest.round >= maxRoundsToday(player, jstDate())) throw new QuestError("daily_limit");
   return createQuest(player, latest.quest.round + 1);
 }
 

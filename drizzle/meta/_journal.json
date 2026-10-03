@@ -36,6 +36,13 @@
       "when": 1791029523275,
       "tag": "0004_eiken",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791031523120,
+      "tag": "0005_bonus_rounds",
+      "breakpoints": true
     }
   ]
 }

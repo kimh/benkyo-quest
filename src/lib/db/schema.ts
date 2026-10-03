@@ -25,6 +25,9 @@ export const players = pgTable("players", {
   exp: integer("exp").notNull().default(0),
   streakDays: integer("streak_days").notNull().default(0),
   lastClearedDate: date("last_cleared_date"),
+  /** 保護者が回数をリセットした日（JST）と、その日に足した回数 */
+  bonusRoundsDate: date("bonus_rounds_date"),
+  bonusRounds: integer("bonus_rounds").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
