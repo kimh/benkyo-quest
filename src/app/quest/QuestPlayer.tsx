@@ -8,6 +8,7 @@ import { Knock, type KnockMood } from "@/components/Knock";
 import { MessageWindow } from "@/components/MessageWindow";
 import { PixelButton, PixelLink } from "@/components/PixelButton";
 import { playSe, setTrack, type SoundEffect } from "@/lib/audio/sound";
+import { preloadSpeech, speak, stopSpeaking } from "@/lib/audio/speech";
 import { PRESCHOOL, subjectLabel } from "@/lib/curriculum/units";
 import { hpRatio, stageCleared, stageOf, type Stage } from "@/lib/game/battle";
 import { monstersForQuest, type Monster } from "@/lib/game/monsters";
@@ -77,19 +78,8 @@ function appearSteps(quest: TodayResponse, stage: Stage): Step[] {
     : [{ anim: "appear", mood: "neutral", text: `${monster.name}が あらわれた！`, se: "appear", ms: 1400, stage }];
 }
 
-/** 読み上げ（ブラウザの音声合成）。英語の問題は英語で、保育園の問題文は日本語で読む */
-function speak(text: string, lang: "en-US" | "ja-JP" = "en-US") {
-  try {
-    speechSynthesis.cancel();
-    // 絵文字は読むと答えがわかったり、長くなったりするので読まない
-    const u = new SpeechSynthesisUtterance(text.replace(/\p{Extended_Pictographic}|️/gu, " "));
-    u.lang = lang;
-    u.rate = lang === "ja-JP" ? 0.9 : 0.85;
-    speechSynthesis.speak(u);
-  } catch {
-    // 読み上げに対応していない端末では何もしない
-  }
-}
+/** 保育園で正解したときに読む文 */
+const PRESCHOOL_CORRECT = "せいかい！ すごいね！";
 
 /** 保育園の問題で読み上げる文。「きいて」の問題は、問題文のあとに ことばを2回読む */
 function preschoolReading(q: PublicQuestion): string {
@@ -165,7 +155,7 @@ export function QuestPlayer() {
     if (phase.kind !== "sequence") return;
     const current = phase.steps[phase.at];
     if (current.se) playSe(current.se);
-    if (readAloud) speak(current.text, "ja-JP");
+    if (readAloud) speak(current.text, "ja");
     const id = setTimeout(() => {
       if (phase.at + 1 < phase.steps.length) {
         setPhase({ ...phase, at: phase.at + 1 });
@@ -187,13 +177,24 @@ export function QuestPlayer() {
   useEffect(() => {
     if (phase.kind === "feedback" && readAloud) {
       const r = phase.res;
-      speak(r.result === "correct" ? "せいかい！ すごいね！" : `ざんねん。こたえは ${r.answer} だよ。`, "ja-JP");
+      speak(r.result === "correct" ? PRESCHOOL_CORRECT : `ざんねん。こたえは ${r.answer} だよ。`, "ja");
       return;
     }
     if (phase.kind !== "question" || !q) return;
-    if (readAloud) speak(phase.hint ? `ヒントだよ。${phase.hint}` : preschoolReading(q), "ja-JP");
+    if (readAloud) speak(phase.hint ? `ヒントだよ。${phase.hint}` : preschoolReading(q), "ja");
     else if (!phase.hint && q.speech) speak(q.speech);
   }, [phase, q, readAloud]);
+
+  // 読み上げの音声はサーバーで作るので、いまの問題と次の問題のぶんを先に取っておく
+  useEffect(() => {
+    if (!quest) return;
+    if (readAloud) preloadSpeech(PRESCHOOL_CORRECT, "ja");
+    for (const next of quest.questions.slice(index, index + 2)) {
+      if (readAloud) preloadSpeech(preschoolReading(next), "ja");
+      else if (next.speech) preloadSpeech(next.speech);
+    }
+  }, [quest, index, readAloud]);
+  useEffect(() => () => stopSpeaking(), []);
 
   async function answer(value: string) {
     if (!quest || phase.kind !== "question") return;
@@ -399,7 +400,7 @@ export function QuestPlayer() {
         <>
           {(q.speech || readAloud) && (
             <PixelButton
-              onClick={() => (readAloud ? speak(hint ?? preschoolReading(q), "ja-JP") : speak(q.speech))}
+              onClick={() => (readAloud ? speak(hint ?? preschoolReading(q), "ja") : speak(q.speech))}
               disabled={sending}
             >
               🔈 もういちど きく
