@@ -17,6 +17,27 @@ const base: Question = {
 };
 
 describe("validateQuestion", () => {
+  it("ひらがなの「きいて」の問題は、ひらがなの読み上げだけ・問題文に ことばを書かない", () => {
+    const listen: Question = {
+      ...base,
+      subject: "japanese",
+      unit: "j0-listen",
+      prompt: "よみあげる ことばは どれかな？",
+      choices: ["いちご", "いちこ", "いしご", "りんご"],
+      answer: "いちご",
+      expression: "",
+      hint: "さいしょの もじを よく きいてね",
+      explanation: "「いちご」は い・ち・ご だよ",
+      speech: "いちご",
+    };
+    expect(validateQuestion(listen, 0)).toEqual([]);
+    expect(validateQuestion({ ...listen, speech: "strawberry" }, 0)).toContain("読み上げに ひらがな以外の文字がある");
+    expect(validateQuestion({ ...listen, speech: "苺" }, 0)).toContain("読み上げに ひらがな以外の文字がある");
+    expect(validateQuestion({ ...listen, prompt: "いちご は どれかな？" }, 0)).toContain(
+      "問題文かヒントに読み上げの ことばが書いてある",
+    );
+    expect(validateQuestion({ ...base, speech: "いちご" }, 2)).toContain("読み上げに英語以外の文字がある");
+  });
   it("英語は英検の読解や会話文のために長めの文を許す", () => {
     const english: Question = {
       ...base,
@@ -111,7 +132,7 @@ describe("validateQuestion（保育園）", () => {
   });
   it("ひらがなの問題に式はいらない", () => {
     const j: Question = { ...pre, subject: "japanese", unit: "j0-match", prompt: "「あ」と おなじ もじは？", choices: ["あ", "お", "め", "ぬ"], answer: "あ" };
-    expect(validateQuestion(j, 0)).toContain("ひらがなの問題に式や英語の読み上げがある");
+    expect(validateQuestion(j, 0)).toContain("ひらがなの問題に式がある");
     expect(validateQuestion({ ...j, expression: "" }, 0)).toEqual([]);
   });
 });

@@ -91,6 +91,11 @@ function speak(text: string, lang: "en-US" | "ja-JP" = "en-US") {
   }
 }
 
+/** 保育園の問題で読み上げる文。「きいて」の問題は、問題文のあとに ことばを2回読む */
+function preschoolReading(q: PublicQuestion): string {
+  return q.speech ? `${q.prompt}。${q.speech}。${q.speech}` : q.prompt;
+}
+
 /**
  * きょうのクエスト。ファイナルファンタジー風の横向きバトルで、1問ごとにモンスターと戦う。
  * 問題の作成・採点はサーバーで行い、ここでは表示と入力と演出だけをする。
@@ -186,7 +191,7 @@ export function QuestPlayer() {
       return;
     }
     if (phase.kind !== "question" || !q) return;
-    if (readAloud) speak(phase.hint ? `ヒントだよ。${phase.hint}` : q.prompt, "ja-JP");
+    if (readAloud) speak(phase.hint ? `ヒントだよ。${phase.hint}` : preschoolReading(q), "ja-JP");
     else if (!phase.hint && q.speech) speak(q.speech);
   }, [phase, q, readAloud]);
 
@@ -394,7 +399,7 @@ export function QuestPlayer() {
         <>
           {(q.speech || readAloud) && (
             <PixelButton
-              onClick={() => (readAloud ? speak(hint ?? q.prompt, "ja-JP") : speak(q.speech))}
+              onClick={() => (readAloud ? speak(hint ?? preschoolReading(q), "ja-JP") : speak(q.speech))}
               disabled={sending}
             >
               🔈 もういちど きく

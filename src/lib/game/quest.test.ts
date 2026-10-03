@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { unitsFor } from "@/lib/curriculum/units";
 import { adjustLevel, parseSubjectLevel } from "./level";
-import { pickUnits, QUEST_SUBJECTS } from "./quest";
+import { pickUnits, QUEST_STAGES, QUEST_SUBJECTS, questSubjects } from "./quest";
 
 describe("QUEST_SUBJECTS", () => {
   it("1日10問", () => {
@@ -53,5 +53,20 @@ describe("parseSubjectLevel", () => {
     expect(parseSubjectLevel("2.5")).toBeNull();
     expect(parseSubjectLevel("")).toBeNull();
     expect(parseSubjectLevel(null)).toBeNull();
+  });
+});
+
+describe("questSubjects", () => {
+  it("小学生は算数と英語が5問ずつ", () => {
+    const subjects = questSubjects(5);
+    expect(subjects.filter((s) => s === "math")).toHaveLength(5);
+    expect(subjects.filter((s) => s === "english")).toHaveLength(5);
+  });
+  it("保育園は ひらがな7問・かず3問で、ステージの問題数は同じ", () => {
+    const subjects = questSubjects(0);
+    expect(subjects).toHaveLength(QUEST_SUBJECTS.length);
+    expect(subjects.filter((s) => s === "japanese")).toHaveLength(7);
+    expect(subjects.filter((s) => s === "math")).toHaveLength(3);
+    expect(QUEST_STAGES.reduce((n, s) => n + s.subjects.length, 0)).toBe(subjects.length);
   });
 });

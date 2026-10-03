@@ -1,4 +1,4 @@
-import { subjectsFor, type Subject, type Unit } from "@/lib/curriculum/units";
+import { PRESCHOOL, subjectsFor, type Subject, type Unit } from "@/lib/curriculum/units";
 
 export type StageKind = "minion" | "boss";
 
@@ -15,8 +15,20 @@ export const QUEST_STAGES: { kind: StageKind; subjects: Subject[] }[] = [
 
 export const QUEST_SUBJECTS: Subject[] = QUEST_STAGES.flatMap((s) => s.subjects);
 
-/** その学年のクエストの科目の並び。保育園は英語の枠が「ひらがな」になる */
+/**
+ * 保育園は ひらがな を重点的に出す（10問のうち ひらがな7問・かず3問）。
+ * ステージごとの問題数は QUEST_STAGES と同じ（3・3・2・2）。
+ */
+const PRESCHOOL_SUBJECTS: Subject[] = [
+  ...(["japanese", "japanese", "japanese"] as const),
+  ...(["math", "math", "japanese"] as const),
+  ...(["japanese", "math"] as const),
+  ...(["japanese", "japanese"] as const),
+];
+
+/** その学年のクエストの科目の並び */
 export function questSubjects(grade: number): Subject[] {
+  if (grade === PRESCHOOL) return PRESCHOOL_SUBJECTS;
   const [main, second] = subjectsFor(grade);
   return QUEST_SUBJECTS.map((s) => (s === "math" ? main : second));
 }

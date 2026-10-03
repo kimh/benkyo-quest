@@ -87,7 +87,10 @@ async function recentPrompts(playerId: number): Promise<string[]> {
     .where(eq(schema.quests.playerId, playerId))
     .orderBy(desc(schema.quests.createdAt))
     .limit(3);
-  return rows.flatMap((r) => (r.questions as Question[]).map((q) => q.prompt));
+  // 読み上げの問題は問題文が同じになりやすいので、読み上げた ことばも つける
+  return rows.flatMap((r) =>
+    (r.questions as Question[]).map((q) => (q.speech ? `${q.prompt}（読み上げ: ${q.speech}）` : q.prompt)),
+  );
 }
 
 export function subjectLevels(player: Player): Record<Subject, number> {
