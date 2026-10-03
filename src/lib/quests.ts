@@ -1,7 +1,8 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { generateQuestions, type Slot } from "@/lib/ai/generate";
-import { unitsFor, type Subject } from "@/lib/curriculum/units";
+import { courseUnits } from "@/lib/curriculum/eiken";
+import type { Subject } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
 import { db, schema } from "@/lib/db";
 import { gemRef, gemsForCorrect, type GemSettings } from "@/lib/game/gems";
@@ -99,7 +100,7 @@ function buildSlots(player: Player, stats: UnitStats): Slot[] {
   const picked = new Map(
     [...new Set(subjects)].map((subject) => [
       subject,
-      pickUnits(unitsFor(player.grade, subject), stats, subjects.filter((s) => s === subject).length),
+      pickUnits(courseUnits(player.grade, subject, player.eikenGrade), stats, subjects.filter((s) => s === subject).length),
     ]),
   );
   return subjects.map((subject) => ({ subject, unit: picked.get(subject)!.shift()!, difficulty: levels[subject] }));
@@ -136,6 +137,7 @@ async function createQuest(player: Player, round: number): Promise<TodayQuest> {
   const { questions, aiCount, rejected, failures } = await generateQuestions({
     grade: player.grade,
     levels: subjectLevels(player),
+    eiken: player.eikenGrade,
     slots,
     recentPrompts: recent,
   });
@@ -295,6 +297,11 @@ async function clearIfDone(
           and(
             eq(schema.quests.playerId, playerId),
             eq(schema.answers.subject, subject),
+            // 英語のコースを変えたあとは、前のコースの解答を見ない
+            inArray(schema.answers.unit, [
+              ...courseUnits(player.grade, subject, player.eikenGrade).map((u) => u.id),
+              `fallback-${subject}`,
+            ]),
             isNotNull(schema.answers.correct),
           ),
         )

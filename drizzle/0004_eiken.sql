@@ -1,0 +1,1 @@
+ALTER TABLE "players" ADD COLUMN "eiken_grade" text;

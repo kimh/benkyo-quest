@@ -29,6 +29,13 @@
       "when": 1790773461218,
       "tag": "0003_preschool",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791029523275,
+      "tag": "0004_eiken",
+      "breakpoints": true
     }
   ]
 }

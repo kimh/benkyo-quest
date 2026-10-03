@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { describeEikenLevel, EIKEN_SCOPE, eikenLabel, type EikenGrade } from "@/lib/curriculum/eiken";
 import { describeLevel, PRESCHOOL, subjectName, subjectsFor, type Subject, type Unit } from "@/lib/curriculum/units";
 import { shuffle, validateQuestion, type Question } from "@/lib/game/question";
 import { fallbackQuestion } from "./fallback";
@@ -13,6 +14,8 @@ export type Slot = { subject: Subject; unit: Unit; difficulty: number };
 export type GenerateInput = {
   grade: number;
   levels: Record<Subject, number>;
+  /** 英語を英検の級で出すときの級。null なら学年どおり */
+  eiken: EikenGrade | null;
   slots: Slot[];
   /** 直近に出した問題文（重複を避ける） */
   recentPrompts: string[];
@@ -80,6 +83,16 @@ const SYSTEM_PROMPT = `あなたは、日本の子ども（保育園の年長〜
 - 5〜6年生: 単語の意味、文の空らんうめ、読み上げを聞いて答える問題をまぜる。
 - speech は英語の半角文字だけで書く。読み上げがいらない問題では空文字列にする。
 
+# 英語を英検の級で出すとき
+「英語: 英検○級」と指定されたら、英語の問題は学年ではなく その級の出題範囲で作る（上の学年別の英語のルールは使わない）。
+- 英検の問題の形にあわせて、4択にする: 語い・文法の空らん（英文の ( ) に入るものを選ぶ）、会話文の空らん、短い読解、リスニング。
+- 英文の単語・文法は その級のレベルにする。かんたんにしすぎない。
+- 空らんは ( ) で書く。英文は prompt に書き、そのあとに改行して日本語で何をするか短く書く（例: 1行目 "My sister ( ) tennis every Sunday."、2行目 "( )に 入るのは どれ？"）。
+- 読解は英文3文まで。prompt は全体で300文字以内にする。
+- 選択肢は英語（語い・文法なら単語や語句、会話文なら短い文）。1つ60文字以内。
+- リスニングの単元では、speech に読み上げる英文を書き、prompt には英文を書かない（「よみあげを きいて、こたえを えらんでね」のように書く）。それ以外の単元では speech は空文字列にする。
+- 日本語の部分（指示・ヒント・解説）は、学年にあわせた文字のルールにしたがう。
+
 # 保育園（5さい・年長）
 - 「かず」: 絵文字を並べて数えたり（🍎🍎🍎 は いくつ？）、くらべたりする。数は10まで。答えが数のときは expression に答えの数（または 2+1 のような式）を書く。選択肢は数字だけ。
 - 「ひらがな」: 1もじの ひらがな・短い ことば・絵文字を選択肢にする。まちがいの選択肢には、かたちや音の にている もじを入れる。speech と expression は空文字列にする。
@@ -103,7 +116,11 @@ function userMessage(input: GenerateInput, slotIndexes: number[]): string {
   const { grade } = input;
   const lines = [
     `学年: ${grade === PRESCHOOL ? "保育園の年長（5さい）" : `小学${grade}年生`}`,
-    ...subjectsFor(grade).map((s) => `${subjectName(s, grade)}の難しさ: ${describeLevel(input.levels[s])}`),
+    ...subjectsFor(grade).map((s) =>
+      s === "english" && input.eiken
+        ? `英語: ${eikenLabel(input.eiken)}（${EIKEN_SCOPE[input.eiken]}）、難しさ: ${describeEikenLevel(input.levels[s])}`
+        : `${subjectName(s, grade)}の難しさ: ${describeLevel(input.levels[s])}`,
+    ),
     "",
     "出題枠:",
     ...slotIndexes.map((i) => {

@@ -17,6 +17,22 @@ const base: Question = {
 };
 
 describe("validateQuestion", () => {
+  it("英語は英検の読解や会話文のために長めの文を許す", () => {
+    const english: Question = {
+      ...base,
+      subject: "english",
+      unit: "k3-talk",
+      prompt: `${"A: Have you ever been to Kyoto? ".repeat(6)}\n( )に 入るのは どれ？`,
+      choices: ["Yes, I have been there twice.", "No, I don't like it at all.", "I will go there.", "It is mine."],
+      answer: "Yes, I have been there twice.",
+      expression: "",
+      hint: "have been to の文だよ",
+      explanation: "Have you ever 〜? には Yes, I have. で答えるよ",
+    };
+    expect(validateQuestion(english, 5)).toEqual([]);
+    expect(validateQuestion({ ...base, prompt: "あ".repeat(151) }, 2)).toContain("問題文が長すぎる");
+    expect(validateQuestion({ ...english, prompt: "a".repeat(301) }, 5)).toContain("問題文が長すぎる");
+  });
   it("正しい問題は合格", () => {
     expect(validateQuestion(base, 2)).toEqual([]);
   });

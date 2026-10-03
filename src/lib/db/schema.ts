@@ -9,6 +9,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { EIKEN_GRADES } from "@/lib/curriculum/eiken";
 
 export const players = pgTable("players", {
   id: serial("id").primaryKey(),
@@ -18,6 +19,8 @@ export const players = pgTable("players", {
   englishLevel: integer("english_level").notNull().default(1),
   /** 保育園の「ひらがな」のレベル */
   japaneseLevel: integer("japanese_level").notNull().default(3),
+  /** 英語を英検の級で出すときの級。null なら学年どおり */
+  eikenGrade: text("eiken_grade", { enum: EIKEN_GRADES }),
   playerLevel: integer("player_level").notNull().default(1),
   exp: integer("exp").notNull().default(0),
   streakDays: integer("streak_days").notNull().default(0),

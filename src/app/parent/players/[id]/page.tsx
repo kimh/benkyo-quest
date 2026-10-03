@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { PixelButton, PixelLink } from "@/components/PixelButton";
+import { EIKEN_GRADES, EIKEN_SCOPE, eikenLabel, findEikenUnit } from "@/lib/curriculum/eiken";
 import { findUnit, gradeLabel, subjectsFor, type Subject } from "@/lib/curriculum/units";
 import { MAX_SUBJECT_LEVEL, MIN_SUBJECT_LEVEL } from "@/lib/game/level";
+import { INITIAL_SUBJECT_LEVEL } from "@/lib/game/player";
 import { playerStats, requireParent } from "@/lib/parent";
 import { getPlayer } from "@/lib/players";
 import { subjectLevels } from "@/lib/quests";
 import { redeemSummary } from "@/lib/redemptions";
-import { updateLevel } from "../../actions";
+import { updateEnglishCourse, updateLevel } from "../../actions";
 
 const SUBJECT_NAME: Record<Subject, string> = { math: "算数", english: "英語", japanese: "ひらがな" };
 
@@ -22,7 +24,7 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", mo
 
 /** 予備の問題（AIが使えなかったとき）は単元を持たないのでまとめて表示する */
 const unitName = (grade: number, subject: Subject, unit: string) =>
-  unit.startsWith("fallback-") ? "予備の問題" : (findUnit(grade, subject, unit)?.name ?? unit);
+  unit.startsWith("fallback-") ? "予備の問題" : (findUnit(grade, subject, unit)?.name ?? findEikenUnit(unit)?.name ?? unit);
 
 const percent = (n: number, total: number) => (total === 0 ? "-" : `${Math.round((n / total) * 100)}%`);
 
@@ -46,6 +48,33 @@ export default async function ParentPlayerPage({ params }: PageProps<"/parent/pl
         <span>Lv {player.playerLevel}</span>
         <span className="text-right text-gem">💎 {balance}</span>
       </section>
+
+      {subjects.includes("english") && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg text-accent">英語のコース</h2>
+          <form action={updateEnglishCourse} className="rpg-window flex flex-col gap-2 p-3">
+            <input type="hidden" name="playerId" value={player.id} />
+            <span className="flex items-center justify-between gap-3">
+              <select
+                name="course"
+                defaultValue={player.eikenGrade ?? "school"}
+                aria-label="英語のコース"
+                className="flex-1 border-2 border-white bg-black px-2 py-1"
+              >
+                <option value="school">学年どおり（{gradeLabel(player.grade)}）</option>
+                {EIKEN_GRADES.map((g) => (
+                  <option key={g} value={g}>
+                    {eikenLabel(g)}
+                  </option>
+                ))}
+              </select>
+              <PixelButton type="submit" className="min-h-10 px-3 py-1 text-base">変更</PixelButton>
+            </span>
+            {player.eikenGrade && <span className="text-sm text-white/70">{EIKEN_SCOPE[player.eikenGrade]}</span>}
+            <span className="text-sm text-white/70">コースを変えると、英語のレベルは Lv {INITIAL_SUBJECT_LEVEL} にもどります。</span>
+          </form>
+        </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg text-accent">難しさのレベル</h2>

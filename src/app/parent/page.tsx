@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PixelButton } from "@/components/PixelButton";
+import { eikenLabel } from "@/lib/curriculum/eiken";
 import { gradeLabel } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
 import { currentStreak } from "@/lib/game/player";
@@ -77,7 +78,10 @@ export default async function ParentPage({ searchParams }: PageProps<"/parent">)
           <Link key={p.id} href={`/parent/players/${p.id}`} className="rpg-window grid grid-cols-[1fr_auto] gap-1 p-3">
             <span className="text-lg">{p.name}</span>
             <span className="text-right">{gradeLabel(p.grade)}</span>
-            <span>Lv {p.playerLevel}　🔥 {currentStreak(p.streakDays, p.lastClearedDate, today)}日</span>
+            <span>
+              Lv {p.playerLevel}　🔥 {currentStreak(p.streakDays, p.lastClearedDate, today)}日
+              {p.eikenGrade && <span className="ml-2 text-sm text-white/70">英語: {eikenLabel(p.eikenGrade)}</span>}
+            </span>
             <span className="text-right text-gem">💎 {p.gems}</span>
           </Link>
         ))}

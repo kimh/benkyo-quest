@@ -32,6 +32,9 @@ export function toPublic(q: Question): PublicQuestion {
 
 const MAX_PROMPT = 150;
 const MAX_CHOICE = 30;
+/** 英検の会話文・読解は英文が長くなるので、英語だけ長めに許す */
+const MAX_ENGLISH_PROMPT = 300;
+const MAX_ENGLISH_CHOICE = 60;
 const MAX_SPEECH = 120;
 
 /** 問題として出してよいかを検査し、問題点の一覧を返す（空なら合格） */
@@ -39,7 +42,8 @@ export function validateQuestion(q: Question, grade: number): string[] {
   const errors: string[] = [];
   const fields = [q.prompt, q.answer, q.hint, q.explanation];
   if (fields.some((f) => !f.trim())) errors.push("空の項目がある");
-  if (q.prompt.length > MAX_PROMPT) errors.push("問題文が長すぎる");
+  const english = q.subject === "english";
+  if (q.prompt.length > (english ? MAX_ENGLISH_PROMPT : MAX_PROMPT)) errors.push("問題文が長すぎる");
   if (q.speech.length > MAX_SPEECH) errors.push("読み上げが長すぎる");
   if (q.speech && /[^\x20-\x7e]/.test(q.speech)) errors.push("読み上げに英語以外の文字がある");
 
@@ -48,7 +52,7 @@ export function validateQuestion(q: Question, grade: number): string[] {
     const minChoices = grade === 0 ? 2 : 4;
     if (q.choices.length < minChoices || q.choices.length > 4) errors.push("選択肢が4つでない");
     if (new Set(q.choices.map((c) => c.trim())).size !== q.choices.length) errors.push("選択肢が重複している");
-    if (q.choices.some((c) => !c.trim() || c.length > MAX_CHOICE)) errors.push("選択肢が空か長すぎる");
+    if (q.choices.some((c) => !c.trim() || c.length > (english ? MAX_ENGLISH_CHOICE : MAX_CHOICE))) errors.push("選択肢が空か長すぎる");
     if (!q.choices.includes(q.answer)) errors.push("正解が選択肢にない");
   } else {
     if (q.choices.length !== 0) errors.push("数字入力なのに選択肢がある");

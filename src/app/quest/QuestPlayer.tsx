@@ -342,6 +342,8 @@ export function QuestPlayer() {
 
   const hint = phase.kind === "question" ? phase.hint : undefined;
   const sending = phase.kind === "sending";
+  // 英検の会話文のような長い選択肢は1列にする
+  const longChoices = q.choices.some((c) => c.length > 12);
 
   let mood: KnockMood = hint ? "winking" : "neutral";
   let text = hint ? `ヒントだよ！ ${hint}\nもういちど かんがえてみて！` : q.prompt;
@@ -399,9 +401,14 @@ export function QuestPlayer() {
             </PixelButton>
           )}
           {q.format === "choice" ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${longChoices ? "grid-cols-1" : "grid-cols-2"}`}>
               {q.choices.map((c) => (
-                <PixelButton key={c} onClick={() => void answer(c)} disabled={sending} className="min-h-14 text-2xl">
+                <PixelButton
+                  key={c}
+                  onClick={() => void answer(c)}
+                  disabled={sending}
+                  className={longChoices ? "min-h-12 text-left text-lg" : "min-h-14 text-2xl"}
+                >
                   {c}
                 </PixelButton>
               ))}

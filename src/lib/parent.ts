@@ -2,9 +2,11 @@ import "server-only";
 import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { EikenGrade } from "@/lib/curriculum/eiken";
 import type { Subject } from "@/lib/curriculum/units";
 import { db, schema } from "@/lib/db";
 import { gemRef } from "@/lib/game/gems";
+import { INITIAL_SUBJECT_LEVEL } from "@/lib/game/player";
 import { isValidParentToken, PARENT_COOKIE } from "@/lib/session";
 
 /** 保護者としてログインしていなければ /parent/login へ */
@@ -27,6 +29,7 @@ export async function listChildren() {
       id: schema.players.id,
       name: schema.players.name,
       grade: schema.players.grade,
+      eikenGrade: schema.players.eikenGrade,
       playerLevel: schema.players.playerLevel,
       streakDays: schema.players.streakDays,
       lastClearedDate: schema.players.lastClearedDate,
@@ -123,4 +126,15 @@ export async function setSubjectLevel(playerId: number, subject: Subject, level:
     .update(schema.players)
     .set({ [LEVEL_COLUMN[subject]]: level })
     .where(eq(schema.players.id, playerId));
+}
+
+/**
+ * 英語のコース（学年どおり / 英検の級）を変える。
+ * 変えたときは英語のレベルを最初の値にもどす（前のコースのレベルは目安にならないため）。
+ */
+export async function setEikenGrade(playerId: number, eikenGrade: EikenGrade | null): Promise<void> {
+  await db
+    .update(schema.players)
+    .set({ eikenGrade, englishLevel: INITIAL_SUBJECT_LEVEL })
+    .where(and(eq(schema.players.id, playerId), sql`${schema.players.eikenGrade} is distinct from ${eikenGrade}`));
 }
