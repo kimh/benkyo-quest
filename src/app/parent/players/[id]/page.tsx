@@ -52,7 +52,8 @@ export default async function ParentPlayerPage({ params }: PageProps<"/parent/pl
       {subjects.includes("english") && (
         <section className="flex flex-col gap-2">
           <h2 className="text-lg text-accent">英語のコース</h2>
-          <form action={updateEnglishCourse} className="rpg-window flex flex-col gap-2 p-3">
+          {/* 保存後に React がフォームをリセットして古い値に戻すので、値が変わったら作り直す */}
+          <form key={player.eikenGrade ?? "school"} action={updateEnglishCourse} className="rpg-window flex flex-col gap-2 p-3">
             <input type="hidden" name="playerId" value={player.id} />
             <span className="flex items-center justify-between gap-3">
               <select
@@ -82,7 +83,7 @@ export default async function ParentPlayerPage({ params }: PageProps<"/parent/pl
           {MIN_SUBJECT_LEVEL}〜{MAX_SUBJECT_LEVEL}。クエストのたびに正答率で自動で上下します。
         </p>
         {subjects.map((subject) => (
-          <form key={subject} action={updateLevel} className="rpg-window flex items-center justify-between gap-3 p-3">
+          <form key={`${subject}-${levels[subject]}`} action={updateLevel} className="rpg-window flex items-center justify-between gap-3 p-3">
             <input type="hidden" name="playerId" value={player.id} />
             <input type="hidden" name="subject" value={subject} />
             <span>{SUBJECT_NAME[subject]}</span>
