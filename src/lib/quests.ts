@@ -4,12 +4,13 @@ import { generateQuestions, type Slot } from "@/lib/ai/generate";
 import { unitsFor, type Subject } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
 import { db, schema } from "@/lib/db";
-import { gemRef, gemsForCorrect, GEM_QUEST_CLEAR } from "@/lib/game/gems";
+import { gemRef, gemsForCorrect, type GemSettings } from "@/lib/game/gems";
 import { adjustLevel, LEVEL_WINDOW } from "@/lib/game/level";
 import { applyExp, expForAnswer, EXP_QUEST_CLEAR, nextStreak } from "@/lib/game/rewards";
 import { MAX_QUESTS_PER_DAY, pickUnits, questSubjects, type UnitStats } from "@/lib/game/quest";
 import { isCorrect, type Question } from "@/lib/game/question";
 import { gemBalance, type Player } from "@/lib/players";
+import { getGemSettings } from "@/lib/settings";
 
 export type Quest = typeof schema.quests.$inferSelect;
 export type AnswerRow = typeof schema.answers.$inferSelect;
@@ -186,6 +187,7 @@ export class QuestError extends Error {
 
 /** 今日のいまの回のクエストの1問に答える。採点とGemの付与はサーバーだけで行う */
 export async function submitAnswer(player: Player, index: number, value: string): Promise<AnswerResult> {
+  const gemSettings = await getGemSettings();
   for (let retry = 0; retry < 3; retry++) {
     const today = await findTodayQuest(player.id);
     if (!today) throw new QuestError("no_quest");
@@ -205,7 +207,7 @@ export async function submitAnswer(player: Player, index: number, value: string)
     const ok = isCorrect(q, value);
     const attempts = a.attempts + 1;
     const correct = ok ? true : attempts >= MAX_ATTEMPTS ? false : null;
-    const gems = ok ? gemsForCorrect(attempts === 1) : 0;
+    const gems = ok ? gemsForCorrect(attempts === 1, gemSettings) : 0;
 
     // 解答の保存とGemの付与は一緒に行う（片方だけ残らないように）
     const updated = await db.transaction(async (tx) => {
@@ -237,7 +239,7 @@ export async function submitAnswer(player: Player, index: number, value: string)
       };
     }
 
-    const { cleared, clearBonus, reward } = await clearIfDone(player.id, today.quest.id);
+    const { cleared, clearBonus, reward } = await clearIfDone(player.id, today.quest.id, gemSettings);
     return storedResult(q, updated, { questCleared: cleared, gems, clearBonus, balance: await gemBalance(player.id), reward });
   }
   throw new Error("解答を保存できませんでした");
@@ -252,6 +254,7 @@ const LEVEL_COLUMN = { math: "mathLevel", english: "englishLevel", japanese: "ja
 async function clearIfDone(
   playerId: number,
   questId: number,
+  gemSettings: GemSettings,
 ): Promise<{ cleared: boolean; clearBonus: number; reward: ClearReward | null }> {
   const answers = await db.select().from(schema.answers).where(eq(schema.answers.questId, questId));
   if (!answers.every(isFinished)) return { cleared: false, clearBonus: 0, reward: null };
@@ -266,7 +269,7 @@ async function clearIfDone(
 
     const [bonus] = await tx
       .insert(schema.gemTransactions)
-      .values({ playerId, delta: GEM_QUEST_CLEAR, reason: "clear_bonus", refId: gemRef.questClear(questId) })
+      .values({ playerId, delta: gemSettings.questClear, reason: "clear_bonus", refId: gemRef.questClear(questId) })
       .onConflictDoNothing({ target: schema.gemTransactions.refId })
       .returning({ id: schema.gemTransactions.id });
 
@@ -317,7 +320,7 @@ async function clearIfDone(
 
     return {
       cleared: true,
-      clearBonus: bonus ? GEM_QUEST_CLEAR : 0,
+      clearBonus: bonus ? gemSettings.questClear : 0,
       reward: { exp, level: grown.level, levelUp: grown.level > player.playerLevel, streakDays, subjectUps },
     };
   });

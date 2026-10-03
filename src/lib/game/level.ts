@@ -16,3 +16,10 @@ export function adjustLevel(level: number, recentNewestFirst: boolean[]): number
   const next = rate >= 0.85 ? level + 1 : rate < 0.5 ? level - 1 : level;
   return Math.min(MAX_SUBJECT_LEVEL, Math.max(MIN_SUBJECT_LEVEL, next));
 }
+
+/** 保護者画面で入れた科目レベルを確かめる（MIN〜MAX の整数） */
+export function parseSubjectLevel(input: unknown): number | null {
+  if (input === "" || input == null) return null;
+  const n = Number(input);
+  return Number.isInteger(n) && n >= MIN_SUBJECT_LEVEL && n <= MAX_SUBJECT_LEVEL ? n : null;
+}

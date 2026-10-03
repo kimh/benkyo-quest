@@ -1,0 +1,126 @@
+import "server-only";
+import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import type { Subject } from "@/lib/curriculum/units";
+import { db, schema } from "@/lib/db";
+import { gemRef } from "@/lib/game/gems";
+import { isValidParentToken, PARENT_COOKIE } from "@/lib/session";
+
+/** 保護者としてログインしていなければ /parent/login へ */
+export async function requireParent(): Promise<void> {
+  if (!isValidParentToken((await cookies()).get(PARENT_COOKIE)?.value)) redirect("/parent/login");
+}
+
+/** 子どもの一覧（Gem残高つき） */
+export async function listChildren() {
+  const balances = db
+    .select({
+      playerId: schema.gemTransactions.playerId,
+      gems: sql<number>`sum(${schema.gemTransactions.delta})::int`.as("gems"),
+    })
+    .from(schema.gemTransactions)
+    .groupBy(schema.gemTransactions.playerId)
+    .as("balances");
+  return db
+    .select({
+      id: schema.players.id,
+      name: schema.players.name,
+      grade: schema.players.grade,
+      playerLevel: schema.players.playerLevel,
+      streakDays: schema.players.streakDays,
+      lastClearedDate: schema.players.lastClearedDate,
+      gems: sql<number>`coalesce(${balances.gems}, 0)::int`,
+    })
+    .from(schema.players)
+    .leftJoin(balances, eq(balances.playerId, schema.players.id))
+    .orderBy(asc(schema.players.id));
+}
+
+/** おねがいちゅうのGemこうかん（古い順・子どもの名前つき） */
+export async function listPendingRedemptions() {
+  return db
+    .select({
+      id: schema.redemptionRequests.id,
+      playerId: schema.redemptionRequests.playerId,
+      playerName: schema.players.name,
+      amount: schema.redemptionRequests.amount,
+      note: schema.redemptionRequests.note,
+      createdAt: schema.redemptionRequests.createdAt,
+    })
+    .from(schema.redemptionRequests)
+    .innerJoin(schema.players, eq(schema.redemptionRequests.playerId, schema.players.id))
+    .where(eq(schema.redemptionRequests.status, "pending"))
+    .orderBy(asc(schema.redemptionRequests.createdAt));
+}
+
+export type ApproveError = "not_pending" | "short";
+
+/**
+ * こうかんを承認して、Gem を引く。
+ * 申請の行をロックしてから pending を確かめるので、2回押しても1回しか引かれない。
+ */
+export async function approveRedemption(requestId: number): Promise<ApproveError | null> {
+  return db.transaction(async (tx) => {
+    const [req] = await tx
+      .select()
+      .from(schema.redemptionRequests)
+      .where(eq(schema.redemptionRequests.id, requestId))
+      .for("update");
+    if (!req || req.status !== "pending") return "not_pending";
+
+    const [{ balance }] = await tx
+      .select({ balance: sql<number>`coalesce(sum(${schema.gemTransactions.delta}), 0)::int` })
+      .from(schema.gemTransactions)
+      .where(eq(schema.gemTransactions.playerId, req.playerId));
+    if (balance < req.amount) return "short";
+
+    await tx
+      .insert(schema.gemTransactions)
+      .values({ playerId: req.playerId, delta: -req.amount, reason: "redeem", refId: gemRef.redeem(req.id) })
+      .onConflictDoNothing({ target: schema.gemTransactions.refId });
+    await tx
+      .update(schema.redemptionRequests)
+      .set({ status: "approved", resolvedAt: new Date() })
+      .where(eq(schema.redemptionRequests.id, req.id));
+    return null;
+  });
+}
+
+/** こうかんを却下する（Gem は引かない） */
+export async function rejectRedemption(requestId: number): Promise<boolean> {
+  const rows = await db
+    .update(schema.redemptionRequests)
+    .set({ status: "rejected", resolvedAt: new Date() })
+    .where(and(eq(schema.redemptionRequests.id, requestId), eq(schema.redemptionRequests.status, "pending")))
+    .returning({ id: schema.redemptionRequests.id });
+  return rows.length > 0;
+}
+
+export type UnitStat = { subject: Subject; unit: string; total: number; correct: number; firstTry: number };
+
+/** 科目×単元ごとの成績（答え終わった問題だけ） */
+export async function playerStats(playerId: number): Promise<UnitStat[]> {
+  return db
+    .select({
+      subject: schema.answers.subject,
+      unit: schema.answers.unit,
+      total: sql<number>`count(*)::int`,
+      correct: sql<number>`count(*) filter (where ${schema.answers.correct})::int`,
+      firstTry: sql<number>`count(*) filter (where ${schema.answers.correct} and ${schema.answers.attempts} = 1)::int`,
+    })
+    .from(schema.answers)
+    .innerJoin(schema.quests, eq(schema.answers.questId, schema.quests.id))
+    .where(and(eq(schema.quests.playerId, playerId), isNotNull(schema.answers.correct)))
+    .groupBy(schema.answers.subject, schema.answers.unit)
+    .orderBy(asc(schema.answers.subject), asc(schema.answers.unit));
+}
+
+const LEVEL_COLUMN = { math: "mathLevel", english: "englishLevel", japanese: "japaneseLevel" } as const;
+
+export async function setSubjectLevel(playerId: number, subject: Subject, level: number): Promise<void> {
+  await db
+    .update(schema.players)
+    .set({ [LEVEL_COLUMN[subject]]: level })
+    .where(eq(schema.players.id, playerId));
+}

@@ -64,3 +64,33 @@ export function verifyPlayerToken(token: string | undefined): number | null {
   if (!Number.isInteger(id) || id <= 0 || !sig) return null;
   return safeEqual(sig, hmac(`player:${id}`)) ? id : null;
 }
+
+/** 保護者画面にログインした端末のCookie。子どもが使う端末で開くので短めに切れる */
+export const PARENT_COOKIE = "bq_parent";
+export const PARENT_SESSION_SECONDS = 30 * 60;
+
+export const parentCookieOptions = { ...cookieOptions, maxAge: PARENT_SESSION_SECONDS };
+
+export function checkParentPin(input: string): boolean {
+  const pin = process.env.PARENT_PIN;
+  return !!pin && safeEqual(input, pin);
+}
+
+function parentSignature(expiresAt: number): string {
+  const pin = process.env.PARENT_PIN ?? "";
+  return hmac(`parent:${expiresAt}:${sha256(pin).toString("base64url")}`);
+}
+
+/** `有効期限(ms).署名`。PINを変えると既存のトークンは無効になる */
+export function parentToken(now = Date.now()): string {
+  const expiresAt = now + PARENT_SESSION_SECONDS * 1000;
+  return `${expiresAt}.${parentSignature(expiresAt)}`;
+}
+
+export function isValidParentToken(token: string | undefined, now = Date.now()): boolean {
+  if (!token || !process.env.PARENT_PIN) return false;
+  const [expPart, sig] = token.split(".");
+  const expiresAt = Number(expPart);
+  if (!Number.isInteger(expiresAt) || !sig || expiresAt <= now) return false;
+  return safeEqual(sig, parentSignature(expiresAt));
+}

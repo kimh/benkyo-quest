@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { unitsFor } from "@/lib/curriculum/units";
-import { adjustLevel } from "./level";
+import { adjustLevel, parseSubjectLevel } from "./level";
 import { pickUnits, QUEST_SUBJECTS } from "./quest";
 
 describe("QUEST_SUBJECTS", () => {
@@ -41,5 +41,17 @@ describe("adjustLevel", () => {
   it("1〜10の範囲におさめる", () => {
     expect(adjustLevel(10, answers(20, 20))).toBe(10);
     expect(adjustLevel(1, answers(0, 20))).toBe(1);
+  });
+});
+
+describe("parseSubjectLevel", () => {
+  it("1〜10の整数だけ", () => {
+    expect(parseSubjectLevel("1")).toBe(1);
+    expect(parseSubjectLevel("10")).toBe(10);
+    expect(parseSubjectLevel("0")).toBeNull();
+    expect(parseSubjectLevel("11")).toBeNull();
+    expect(parseSubjectLevel("2.5")).toBeNull();
+    expect(parseSubjectLevel("")).toBeNull();
+    expect(parseSubjectLevel(null)).toBeNull();
   });
 });

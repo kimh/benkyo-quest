@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MAX_PLAYERS } from "@/lib/game/player";
 import { currentPlayer, listPlayers } from "@/lib/players";
@@ -10,6 +11,9 @@ export default async function SetupPage() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-6 p-4">
       <SetupFlow players={players} canCreate={players.length < MAX_PLAYERS} />
+      <Link href="/parent" className="text-sm text-white/50 underline">
+        おうちの人へ
+      </Link>
     </main>
   );
 }

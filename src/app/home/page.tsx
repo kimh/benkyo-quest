@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Knock } from "@/components/Knock";
 import { MessageWindow } from "@/components/MessageWindow";
@@ -51,6 +52,10 @@ export default async function HomePage() {
         </PixelLink>
         <PixelLink href="/gems">💎 Gem こうかん</PixelLink>
       </nav>
+
+      <Link href="/parent" className="self-center text-sm text-white/50 underline">
+        おうちの人へ
+      </Link>
     </main>
   );
 }
