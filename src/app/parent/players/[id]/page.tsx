@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import { PixelButton, PixelLink } from "@/components/PixelButton";
-import { EIKEN_GRADES, EIKEN_SCOPE, eikenLabel, findEikenUnit } from "@/lib/curriculum/eiken";
+import { findEikenUnit } from "@/lib/curriculum/eiken";
 import { findUnit, gradeLabel, subjectsFor, type Subject } from "@/lib/curriculum/units";
 import { MAX_SUBJECT_LEVEL, MIN_SUBJECT_LEVEL } from "@/lib/game/level";
-import { INITIAL_SUBJECT_LEVEL } from "@/lib/game/player";
 import { playerStats, requireParent } from "@/lib/parent";
 import { getPlayer } from "@/lib/players";
 import { subjectLevels } from "@/lib/quests";
 import { redeemSummary } from "@/lib/redemptions";
-import { updateEnglishCourse, updateLevel } from "../../actions";
+import { updateLevel } from "../../actions";
+import { EnglishCourseForm } from "./EnglishCourseForm";
 
 const SUBJECT_NAME: Record<Subject, string> = { math: "算数", english: "英語", japanese: "ひらがな" };
 
@@ -53,27 +53,12 @@ export default async function ParentPlayerPage({ params }: PageProps<"/parent/pl
         <section className="flex flex-col gap-2">
           <h2 className="text-lg text-accent">英語のコース</h2>
           {/* 保存後に React がフォームをリセットして古い値に戻すので、値が変わったら作り直す */}
-          <form key={player.eikenGrade ?? "school"} action={updateEnglishCourse} className="rpg-window flex flex-col gap-2 p-3">
-            <input type="hidden" name="playerId" value={player.id} />
-            <span className="flex items-center justify-between gap-3">
-              <select
-                name="course"
-                defaultValue={player.eikenGrade ?? "school"}
-                aria-label="英語のコース"
-                className="flex-1 border-2 border-white bg-black px-2 py-1"
-              >
-                <option value="school">学年どおり（{gradeLabel(player.grade)}）</option>
-                {EIKEN_GRADES.map((g) => (
-                  <option key={g} value={g}>
-                    {eikenLabel(g)}
-                  </option>
-                ))}
-              </select>
-              <PixelButton type="submit" className="min-h-10 px-3 py-1 text-base">変更</PixelButton>
-            </span>
-            {player.eikenGrade && <span className="text-sm text-white/70">{EIKEN_SCOPE[player.eikenGrade]}</span>}
-            <span className="text-sm text-white/70">コースを変えると、英語のレベルは Lv {INITIAL_SUBJECT_LEVEL} にもどります。</span>
-          </form>
+          <EnglishCourseForm
+            key={player.eikenGrade ?? "school"}
+            playerId={player.id}
+            saved={player.eikenGrade}
+            gradeName={gradeLabel(player.grade)}
+          />
         </section>
       )}
 
