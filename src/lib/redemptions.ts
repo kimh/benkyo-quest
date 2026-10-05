@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { MAX_PENDING_REDEEMS, normalizeRedeemNote, validateRedeemAmount } from "@/lib/game/gems";
+import { MAX_PENDING_REDEEMS, normalizeRedeemNote, validateRedeemAmount, validateRobuxAmount } from "@/lib/game/gems";
 
 export type Redemption = typeof schema.redemptionRequests.$inferSelect;
 
@@ -36,22 +36,34 @@ export async function redeemSummary(playerId: number) {
   return { ...status, requests };
 }
 
-export type RedeemError = "bad_amount" | "bad_note" | "too_many";
+export type RedeemKind = Redemption["kind"];
+export type RedeemError = "bad_amount" | "bad_note" | "too_many" | "robux_off";
 
 /**
  * Gemこうかんを おねがいする。Gem はまだ引かず、保護者が承認したときに引く。
  * 同時に押されても使えるGemをこえないよう、プレイヤーの行をロックして確かめる。
+ * Robux は保護者がオンにした子だけ、ROBUX_GEM_STEP ずつ（メモはなし）。
  */
-export async function requestRedeem(playerId: number, amountInput: unknown, noteInput: unknown): Promise<RedeemError | null> {
-  const note = normalizeRedeemNote(noteInput);
+export async function requestRedeem(
+  playerId: number,
+  kind: RedeemKind,
+  amountInput: unknown,
+  noteInput: unknown,
+): Promise<RedeemError | null> {
+  const note = kind === "robux" ? "" : normalizeRedeemNote(noteInput);
   if (note === null) return "bad_note";
   return db.transaction(async (tx) => {
-    await tx.select({ id: schema.players.id }).from(schema.players).where(eq(schema.players.id, playerId)).for("update");
+    const [player] = await tx
+      .select({ robuxEnabled: schema.players.robuxEnabled })
+      .from(schema.players)
+      .where(eq(schema.players.id, playerId))
+      .for("update");
+    if (kind === "robux" && !player?.robuxEnabled) return "robux_off";
     const { available, pendingCount } = await gemStatus(tx, playerId);
     if (pendingCount >= MAX_PENDING_REDEEMS) return "too_many";
-    const amount = validateRedeemAmount(amountInput, available);
+    const amount = (kind === "robux" ? validateRobuxAmount : validateRedeemAmount)(amountInput, available);
     if (amount === null) return "bad_amount";
-    await tx.insert(schema.redemptionRequests).values({ playerId, amount, note });
+    await tx.insert(schema.redemptionRequests).values({ playerId, kind, amount, note });
     return null;
   });
 }

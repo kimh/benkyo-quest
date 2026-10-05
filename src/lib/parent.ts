@@ -49,6 +49,7 @@ export async function listPendingRedemptions() {
       id: schema.redemptionRequests.id,
       playerId: schema.redemptionRequests.playerId,
       playerName: schema.players.name,
+      kind: schema.redemptionRequests.kind,
       amount: schema.redemptionRequests.amount,
       note: schema.redemptionRequests.note,
       createdAt: schema.redemptionRequests.createdAt,
@@ -100,6 +101,11 @@ export async function rejectRedemption(requestId: number): Promise<boolean> {
     .where(and(eq(schema.redemptionRequests.id, requestId), eq(schema.redemptionRequests.status, "pending")))
     .returning({ id: schema.redemptionRequests.id });
   return rows.length > 0;
+}
+
+/** Robux こうかんを できるようにする / やめる */
+export async function setRobuxEnabled(playerId: number, robuxEnabled: boolean): Promise<void> {
+  await db.update(schema.players).set({ robuxEnabled }).where(eq(schema.players.id, playerId));
 }
 
 export type UnitStat = { subject: Subject; unit: string; total: number; correct: number; firstTry: number };

@@ -58,3 +58,16 @@ export function normalizeRedeemNote(input: unknown): string | null {
   const note = input.normalize("NFC").trim().replace(/\s+/g, " ");
   return [...note].length <= REDEEM_NOTE_MAX ? note : null;
 }
+
+/** Robux 1 に ひつような Gem */
+export const GEMS_PER_ROBUX = 2;
+/** Robux こうかんは この Gem の数ずつ（いちばん少なくても この数） */
+export const ROBUX_GEM_STEP = 100;
+
+export const robuxFor = (gems: number) => gems / GEMS_PER_ROBUX;
+
+/** Robux と こうかんする Gem の数を確かめる（ROBUX_GEM_STEP ずつ・使えるGem以下） */
+export function validateRobuxAmount(input: unknown, available: number): number | null {
+  const n = validateRedeemAmount(input, available);
+  return n !== null && n % ROBUX_GEM_STEP === 0 ? n : null;
+}

@@ -28,6 +28,8 @@ export const players = pgTable("players", {
   /** 保護者が回数をリセットした日（JST）と、その日に足した回数 */
   bonusRoundsDate: date("bonus_rounds_date"),
   bonusRounds: integer("bonus_rounds").notNull().default(0),
+  /** Gem を Robux と こうかん できるか（保護者画面で切りかえる） */
+  robuxEnabled: boolean("robux_enabled").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -88,6 +90,10 @@ export const redemptionRequests = pgTable("redemption_requests", {
     .notNull()
     .references(() => players.id, { onDelete: "cascade" }),
   amount: integer("amount").notNull(),
+  /** reward: おうちの ごほうび / robux: Roblox の Robux（保護者が手で わたす） */
+  kind: text("kind", { enum: ["reward", "robux"] })
+    .notNull()
+    .default("reward"),
   note: text("note").notNull().default(""),
   status: text("status", { enum: ["pending", "approved", "rejected"] })
     .notNull()

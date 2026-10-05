@@ -13,6 +13,7 @@ import {
   requireParent,
   resetTodayRounds,
   setEikenGrade,
+  setRobuxEnabled,
   setSubjectLevel,
 } from "@/lib/parent";
 import { getPlayer } from "@/lib/players";
@@ -70,6 +71,14 @@ export async function resetRounds(formData: FormData): Promise<void> {
   const player = await getPlayer(Number(formData.get("playerId")));
   if (!player) return;
   await resetTodayRounds(player.id);
+  revalidatePath(`/parent/players/${player.id}`);
+}
+
+export async function updateRobux(formData: FormData): Promise<void> {
+  await requireParent();
+  const player = await getPlayer(Number(formData.get("playerId")));
+  if (!player) return;
+  await setRobuxEnabled(player.id, formData.get("enabled") === "on");
   revalidatePath(`/parent/players/${player.id}`);
 }
 

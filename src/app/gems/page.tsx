@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import { Knock } from "@/components/Knock";
 import { MessageWindow } from "@/components/MessageWindow";
 import { PixelButton, PixelLink } from "@/components/PixelButton";
-import { MAX_PENDING_REDEEMS } from "@/lib/game/gems";
+import { GEMS_PER_ROBUX, MAX_PENDING_REDEEMS, ROBUX_GEM_STEP, robuxFor } from "@/lib/game/gems";
 import { currentPlayer } from "@/lib/players";
 import { redeemSummary } from "@/lib/redemptions";
 import { cancel } from "./actions";
 import { RedeemForm } from "./RedeemForm";
+import { RobuxForm } from "./RobuxForm";
 
 const STATUS = {
   pending: { label: "おねがいちゅう", color: "text-accent" },
@@ -21,6 +22,7 @@ export default async function GemsPage() {
   if (!player) redirect("/setup");
   const { balance, pending, available, pendingCount, requests } = await redeemSummary(player.id);
   const canRequest = available > 0 && pendingCount < MAX_PENDING_REDEEMS;
+  const showRobux = player.robuxEnabled && pendingCount < MAX_PENDING_REDEEMS;
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 p-4">
@@ -55,6 +57,16 @@ export default async function GemsPage() {
 
       {canRequest && <RedeemForm available={available} />}
 
+      {showRobux && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg text-accent">Robux と こうかん</h2>
+          <p className="text-sm text-white/70">
+            💎 {GEMS_PER_ROBUX} で 1 Robux。💎 {ROBUX_GEM_STEP} ずつ こうかん できるよ。
+          </p>
+          <RobuxForm available={available} />
+        </section>
+      )}
+
       {requests.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="text-lg text-accent">こうかんの きろく</h2>
@@ -63,6 +75,7 @@ export default async function GemsPage() {
               <div>
                 <div>
                   {dateFormat.format(r.createdAt)}　💎 {r.amount}
+                  {r.kind === "robux" && ` → ${robuxFor(r.amount)} Robux`}
                   {r.note && `　${r.note}`}
                 </div>
                 <div className={STATUS[r.status].color}>{STATUS[r.status].label}</div>

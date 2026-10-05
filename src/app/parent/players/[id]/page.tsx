@@ -3,13 +3,14 @@ import { PixelButton, PixelLink } from "@/components/PixelButton";
 import { findEikenUnit } from "@/lib/curriculum/eiken";
 import { findUnit, gradeLabel, subjectsFor, type Subject } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
+import { GEMS_PER_ROBUX, ROBUX_GEM_STEP, robuxFor } from "@/lib/game/gems";
 import { MAX_SUBJECT_LEVEL, MIN_SUBJECT_LEVEL } from "@/lib/game/level";
 import { MAX_QUESTS_PER_DAY, maxRoundsToday } from "@/lib/game/quest";
 import { playerStats, requireParent, todayRounds } from "@/lib/parent";
 import { getPlayer } from "@/lib/players";
 import { subjectLevels } from "@/lib/quests";
 import { redeemSummary } from "@/lib/redemptions";
-import { resetRounds, updateLevel } from "../../actions";
+import { resetRounds, updateLevel, updateRobux } from "../../actions";
 import { EnglishCourseForm } from "./EnglishCourseForm";
 
 const SUBJECT_NAME: Record<Subject, string> = { math: "算数", english: "英語", japanese: "ひらがな" };
@@ -68,6 +69,21 @@ export default async function ParentPlayerPage({ params }: PageProps<"/parent/pl
           </PixelButton>
         </form>
         <p className="text-sm text-white/70">リセットすると、きょうはあと{MAX_QUESTS_PER_DAY}回遊べます。これまでの記録は消えません。</p>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-lg text-accent">Robuxこうかん</h2>
+        <form action={updateRobux} className="rpg-window flex items-center justify-between gap-3 p-3">
+          <input type="hidden" name="playerId" value={player.id} />
+          {!player.robuxEnabled && <input type="hidden" name="enabled" value="on" />}
+          <span>{player.robuxEnabled ? "オン" : "オフ"}</span>
+          <PixelButton type="submit" className="min-h-10 px-3 py-1 text-base">
+            {player.robuxEnabled ? "オフにする" : "オンにする"}
+          </PixelButton>
+        </form>
+        <p className="text-sm text-white/70">
+          {GEMS_PER_ROBUX} Gem で 1 Robux、{ROBUX_GEM_STEP} Gem 単位で申請できます。Robux は承認前に手動で渡してください。
+        </p>
       </section>
 
       {subjects.includes("english") && (
@@ -163,6 +179,7 @@ export default async function ParentPlayerPage({ params }: PageProps<"/parent/pl
               <div key={r.id} className="flex justify-between gap-2">
                 <span>
                   {dateFormat.format(r.createdAt)}　💎 {r.amount}
+                  {r.kind === "robux" && ` → ${robuxFor(r.amount)} Robux`}
                   {r.note && `　${r.note}`}
                 </span>
                 <span className={STATUS[r.status].color}>{STATUS[r.status].label}</span>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_GEM_SETTINGS, gemsForCorrect, normalizeRedeemNote, parseGemSettings, validateRedeemAmount } from "./gems";
+import { DEFAULT_GEM_SETTINGS, gemsForCorrect, normalizeRedeemNote, parseGemSettings, robuxFor, validateRedeemAmount, validateRobuxAmount } from "./gems";
 
 describe("validateRedeemAmount", () => {
   it("1以上・使えるGem以下の整数だけ", () => {
@@ -9,6 +9,22 @@ describe("validateRedeemAmount", () => {
     expect(validateRedeemAmount("0", 30)).toBeNull();
     expect(validateRedeemAmount("1.5", 30)).toBeNull();
     expect(validateRedeemAmount("", 30)).toBeNull();
+  });
+});
+
+describe("validateRobuxAmount", () => {
+  it("100 Gem ずつ・使えるGem以下だけ", () => {
+    expect(validateRobuxAmount("100", 150)).toBe(100);
+    expect(validateRobuxAmount(300, 300)).toBe(300);
+    expect(validateRobuxAmount("50", 150)).toBeNull();
+    expect(validateRobuxAmount("150", 150)).toBeNull();
+    expect(validateRobuxAmount("200", 150)).toBeNull();
+    expect(validateRobuxAmount("0", 150)).toBeNull();
+    expect(validateRobuxAmount("-100", 150)).toBeNull();
+  });
+  it("2 Gem で 1 Robux", () => {
+    expect(robuxFor(100)).toBe(50);
+    expect(robuxFor(300)).toBe(150);
   });
 });
 

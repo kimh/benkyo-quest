@@ -3,6 +3,7 @@ import { PixelButton } from "@/components/PixelButton";
 import { eikenLabel } from "@/lib/curriculum/eiken";
 import { gradeLabel } from "@/lib/curriculum/units";
 import { jstDate } from "@/lib/date";
+import { robuxFor } from "@/lib/game/gems";
 import { currentStreak } from "@/lib/game/player";
 import { listChildren, listPendingRedemptions, requireParent } from "@/lib/parent";
 import { getGemSettings } from "@/lib/settings";
@@ -53,9 +54,13 @@ export default async function ParentPage({ searchParams }: PageProps<"/parent">)
             <div key={r.id} className="rpg-window flex flex-col gap-2 p-3">
               <div>
                 {r.playerName}　<span className="text-gem">💎 {r.amount}</span>
+                {r.kind === "robux" && <span className="ml-2 text-ok">→ {robuxFor(r.amount)} Robux</span>}
                 <span className="ml-2 text-sm text-white/60">{dateTimeFormat.format(r.createdAt)}</span>
               </div>
               {r.note && <div>「{r.note}」</div>}
+              {r.kind === "robux" && (
+                <div className="text-sm text-white/70">Roblox で {robuxFor(r.amount)} Robux を渡してから承認してください</div>
+              )}
               <div className="flex gap-2">
                 <form action={approve} className="flex-1">
                   <input type="hidden" name="id" value={r.id} />
