@@ -2,7 +2,7 @@ import { shuffle, type Question } from "@/lib/game/question";
 import type { Slot } from "./generate";
 
 /**
- * AIが使えないとき用の問題。算数はコードで作り、英語・ひらがなは固定の問題集から出す。
+ * AIが使えないとき用の問題。算数はコードで作り、英語・理科・ひらがなは固定の問題集から出す。
  * 保育園〜2年生の漢字チェックに通るよう、文章は ひらがなだけで書く。
  * 単元の成績を乱さないよう、unit は "fallback-*" にする。
  */
@@ -15,6 +15,8 @@ export function fallbackQuestion(slot: Slot, grade: number, random: () => number
       return { ...base, subject: "english", unit: "fallback-english", ...englishQuestion(grade, random) };
     case "japanese":
       return { ...base, subject: "japanese", unit: "fallback-japanese", ...hiraganaQuestion(random) };
+    case "science":
+      return { ...base, subject: "science", unit: "fallback-science", ...scienceQuestion(grade, random) };
   }
 }
 
@@ -288,5 +290,140 @@ function hiraganaQuestion(random: () => number): Body {
     expression: "",
     hint: "さいしょの もじの おとを かんがえてみよう！",
     explanation: `${emoji} は「${word}」だよ。`,
+  };
+}
+
+type Quiz = { prompt: string; answer: string; wrong: [string, string, string]; hint: string; explanation: string };
+
+/** 1〜2年生（生活科）の理科 */
+const SCIENCE_LOWER: Quiz[] = [
+  {
+    prompt: "🌻 ひまわりの はなが さくのは どの きせつかな？",
+    answer: "なつ",
+    wrong: ["はる", "あき", "ふゆ"],
+    hint: "あつい ひに おおきな はなを みたことが あるかな？",
+    explanation: "ひまわりは あつい なつに さく はなだよ。",
+  },
+  {
+    prompt: "🌸 さくらの はなが さくのは どの きせつかな？",
+    answer: "はる",
+    wrong: ["なつ", "あき", "ふゆ"],
+    hint: "にゅうがくしきの ころを おもいだしてみよう！",
+    explanation: "さくらは あたたかく なる はるに さくよ。",
+  },
+  {
+    prompt: "おたまじゃくしは おおきく なると なにに なるかな？",
+    answer: "🐸",
+    wrong: ["🐟", "🐢", "🦆"],
+    hint: "あしが はえて、しっぽが なくなるよ！",
+    explanation: "おたまじゃくしは カエルの こどもだよ。",
+  },
+  {
+    prompt: "あおむしは さなぎに なった あと なにに なるかな？",
+    answer: "🦋",
+    wrong: ["🐝", "🐞", "🐜"],
+    hint: "はねを ひらいて ひらひら とぶよ！",
+    explanation: "あおむしは さなぎに なって、そのあと チョウに なるよ。",
+  },
+  {
+    prompt: "じしゃくに くっつく ものは どれかな？",
+    answer: "てつの クリップ",
+    wrong: ["けしゴム", "かみの ノート", "ガラスの コップ"],
+    hint: "じしゃくは てつで できた ものが すきだよ！",
+    explanation: "じしゃくは てつで できた ものに くっつくよ。",
+  },
+  {
+    prompt: "あさがおの たねを まくと、さいしょに でてくるのは どれかな？",
+    answer: "め",
+    wrong: ["はな", "み", "つる"],
+    hint: "つちの なかから ちいさく でてくるよ！",
+    explanation: "たねから さいしょに めが でて、だんだん おおきく なるよ。",
+  },
+  {
+    prompt: "🍁 はっぱが あかや きいろに なるのは どの きせつかな？",
+    answer: "あき",
+    wrong: ["はる", "なつ", "ふゆ"],
+    hint: "どんぐりが おちている ころだよ！",
+    explanation: "あきに なると はっぱが あかや きいろに なるよ。",
+  },
+  {
+    prompt: "ダンゴムシを さわると どう なるかな？",
+    answer: "まるく なる",
+    wrong: ["そらを とぶ", "おおきく なる", "いろが かわる"],
+    hint: "なまえに ヒントが あるよ！",
+    explanation: "ダンゴムシは びっくりすると まるく なって からだを まもるよ。",
+  },
+];
+
+/** 3〜6年生の理科 */
+const SCIENCE_UPPER: Quiz[] = [
+  {
+    prompt: "こん虫の あしは なん本かな？",
+    answer: "6本",
+    wrong: ["4本", "8本", "10本"],
+    hint: "アリや チョウの あしを おもいだしてみよう！",
+    explanation: "こん虫の あしは 6本で、むねから でているよ。",
+  },
+  {
+    prompt: "こん虫の からだは いくつの ぶぶんに わかれているかな？",
+    answer: "3つ",
+    wrong: ["2つ", "4つ", "5つ"],
+    hint: "あたま・むね・…あと ひとつは？",
+    explanation: "こん虫の からだは あたま・むね・はらの 3つに わかれているよ。",
+  },
+  {
+    prompt: "じしゃくに つくのは どれかな？",
+    answer: "てつ",
+    wrong: ["アルミニウム", "どう", "ガラス"],
+    hint: "きんぞくでも じしゃくに つかない ものが あるよ！",
+    explanation: "じしゃくに つくのは てつだよ。アルミニウムや どうは つかないよ。",
+  },
+  {
+    prompt: "水が こおりに なるのは なん ℃ かな？",
+    answer: "0℃",
+    wrong: ["10℃", "50℃", "100℃"],
+    hint: "ふゆの さむい あさの いけを おもいだしてみよう！",
+    explanation: "水は 0℃で こおりに なるよ。100℃は ふっとうする おんどだよ。",
+  },
+  {
+    prompt: "かげが できるのは、たいようから みて どちら がわかな？",
+    answer: "はんたいがわ",
+    wrong: ["おなじ がわ", "まうえ", "どこにも できない"],
+    hint: "ひかりが さえぎられた ところが かげに なるよ！",
+    explanation: "かげは たいようの はんたいがわに できるよ。",
+  },
+  {
+    prompt: "ものが もえる ときに ひつような ものは どれかな？",
+    answer: "さんそ",
+    wrong: ["ちっそ", "にさんかたんそ", "水じょうき"],
+    hint: "わたしたちが いきを するときにも つかう ものだよ！",
+    explanation: "ものが もえるには さんそが ひつようだよ。",
+  },
+  {
+    prompt: "ふりこが 1おうふく する じかんを かえるには、なにを かえると いいかな？",
+    answer: "ふりこの ながさ",
+    wrong: ["おもりの おもさ", "ふれはば", "おもりの いろ"],
+    hint: "ブランコの くさりが ながいと、ゆっくり ゆれるね！",
+    explanation: "ふりこが 1おうふく する じかんは、ふりこの ながさで きまるよ。",
+  },
+  {
+    prompt: "でんきを とおす ものは どれかな？",
+    answer: "アルミはく",
+    wrong: ["わりばし", "ゴム", "プラスチック"],
+    hint: "きんぞくで できた ものを さがそう！",
+    explanation: "アルミはくは きんぞくなので でんきを とおすよ。",
+  },
+];
+
+function scienceQuestion(grade: number, random: () => number): Body {
+  const quiz = pick(random, grade <= 2 ? SCIENCE_LOWER : SCIENCE_UPPER);
+  return {
+    format: "choice",
+    prompt: quiz.prompt,
+    choices: shuffle([quiz.answer, ...quiz.wrong], random),
+    answer: quiz.answer,
+    expression: "",
+    hint: quiz.hint,
+    explanation: quiz.explanation,
   };
 }

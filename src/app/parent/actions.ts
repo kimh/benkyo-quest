@@ -44,7 +44,7 @@ export async function updateGemSettings(_prev: GemSettingsState, formData: FormD
   return { done: true };
 }
 
-const SUBJECTS: readonly Subject[] = ["math", "english", "japanese"];
+const SUBJECTS: readonly Subject[] = ["math", "english", "japanese", "science"];
 
 export async function updateLevel(formData: FormData): Promise<void> {
   await requireParent();

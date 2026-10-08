@@ -127,7 +127,7 @@ export async function playerStats(playerId: number): Promise<UnitStat[]> {
     .orderBy(asc(schema.answers.subject), asc(schema.answers.unit));
 }
 
-const LEVEL_COLUMN = { math: "mathLevel", english: "englishLevel", japanese: "japaneseLevel" } as const;
+const LEVEL_COLUMN = { math: "mathLevel", english: "englishLevel", japanese: "japaneseLevel", science: "scienceLevel" } as const;
 
 export async function setSubjectLevel(playerId: number, subject: Subject, level: number): Promise<void> {
   await db

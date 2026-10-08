@@ -34,6 +34,7 @@ export async function createPlayer(_prev: SetupState, formData: FormData): Promi
       mathLevel: INITIAL_SUBJECT_LEVEL,
       englishLevel: INITIAL_SUBJECT_LEVEL,
       japaneseLevel: INITIAL_SUBJECT_LEVEL,
+      scienceLevel: INITIAL_SUBJECT_LEVEL,
     })
     .returning({ id: schema.players.id });
 

@@ -19,6 +19,7 @@ export const players = pgTable("players", {
   englishLevel: integer("english_level").notNull().default(1),
   /** 保育園の「ひらがな」のレベル */
   japaneseLevel: integer("japanese_level").notNull().default(3),
+  scienceLevel: integer("science_level").notNull().default(1),
   /** 英語を英検の級で出すときの級。null なら学年どおり */
   eikenGrade: text("eiken_grade", { enum: EIKEN_GRADES }),
   playerLevel: integer("player_level").notNull().default(1),
@@ -62,7 +63,7 @@ export const answers = pgTable(
       .notNull()
       .references(() => quests.id, { onDelete: "cascade" }),
     questionIndex: integer("question_index").notNull(),
-    subject: text("subject", { enum: ["math", "english", "japanese"] }).notNull(),
+    subject: text("subject", { enum: ["math", "english", "japanese", "science"] }).notNull(),
     unit: text("unit").notNull(),
     difficulty: integer("difficulty").notNull(),
     attempts: integer("attempts").notNull().default(0),

@@ -49,6 +49,8 @@ export function validateQuestion(q: Question, grade: number): string[] {
     // 保育園の「きいて」の問題は、ことばを日本語で読み上げる
     if (q.speech && !/^[\u3041-\u309fー]+$/.test(q.speech)) errors.push("読み上げに ひらがな以外の文字がある");
     if (q.speech && [q.prompt, q.hint].some((t) => t.includes(q.speech))) errors.push("問題文かヒントに読み上げの ことばが書いてある");
+  } else if (q.subject === "science") {
+    if (q.speech) errors.push("理科の問題に読み上げがある");
   } else if (q.speech && /[^\x20-\x7e]/.test(q.speech)) {
     errors.push("読み上げに英語以外の文字がある");
   }
@@ -68,6 +70,7 @@ export function validateQuestion(q: Question, grade: number): string[] {
 
   if (grade === 0 && q.format !== "choice") errors.push("保育園は4択だけ");
   if (q.subject === "japanese" && q.expression) errors.push("ひらがなの問題に式がある");
+  if (q.subject === "science" && q.expression) errors.push("理科の問題に式がある");
 
   if (q.subject === "math") {
     const answerValue = parseAnswerNumber(q.answer);

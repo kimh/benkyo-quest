@@ -1,4 +1,4 @@
-export type Subject = "math" | "english" | "japanese";
+export type Subject = "math" | "english" | "japanese" | "science";
 
 export type Unit = {
   id: string;
@@ -15,6 +15,7 @@ export const PRESCHOOL = 0;
 /**
  * 学年×科目の単元。想定ユーザーの2年生・5年生は細かく、それ以外は大まかに定義する。
  * 保育園は 算数のかわりに「かず」、英語のかわりに「ひらがな」を出す。
+ * 理科は1〜2年生には無いので、生活科の内容（いきもの・しょくぶつ・きせつ）を「りか」として出す。
  * id は成績集計に使うので変更しないこと。
  */
 export const CURRICULUM: Curriculum = {
@@ -59,6 +60,12 @@ export const CURRICULUM: Curriculum = {
       { id: "e1-number", name: "かず", guide: "one〜ten" },
       { id: "e1-greeting", name: "あいさつ", guide: "Hello, Good morning, Thank you など" },
     ],
+    science: [
+      { id: "s1-flower", name: "あさがおを そだてよう", guide: "あさがおの そだち（たね→め→はっぱ→つる→はな→たね）、水やり" },
+      { id: "s1-creature", name: "みぢかな いきもの", guide: "ありや だんごむし、きんぎょ、うさぎ など みぢかな いきものの すみか・たべもの・からだ" },
+      { id: "s1-season", name: "きせつ", guide: "はる・なつ・あき・ふゆの はな・むし・くだもの・てんき・ようす（🌸🌻🍁⛄ など）" },
+      { id: "s1-play", name: "しぜんで あそぼう", guide: "かげ・かぜ・水・おちば・どんぐり・いろみず など、しぜんの ものを つかった あそび" },
+    ],
   },
   2: {
     math: [
@@ -82,6 +89,13 @@ export const CURRICULUM: Curriculum = {
       { id: "e2-body", name: "からだ", guide: "head, hand, eye, nose, mouth などの体のぶぶん。絵文字で答えさせる" },
       { id: "e2-alphabet", name: "アルファベット", guide: "大文字 A〜Z の読み方・形（ABCの歌の順番）" },
     ],
+    science: [
+      { id: "s2-vegetable", name: "やさいを そだてよう", guide: "ミニトマト・ナス・キュウリ・ピーマンの そだち（たね/なえ→はな→み）、水やり、みの いろ" },
+      { id: "s2-creature", name: "生きものと なかよし", guide: "ザリガニ・ダンゴムシ・カエル・バッタ・メダカ などの すみか・食べもの・せわの しかた" },
+      { id: "s2-lifecycle", name: "生きものの 大きくなりかた", guide: "たまご→おたまじゃくし→カエル、たまご→よう虫→さなぎ→チョウ、たまご→ひよこ→ニワトリ の じゅんばん" },
+      { id: "s2-season", name: "きせつと しぜん", guide: "きせつごとの 生きもの・草花・天気・木の ようすの へんか" },
+      { id: "s2-toy", name: "うごく おもちゃ", guide: "風・ゴム・じしゃく・水で うごく おもちゃ。じしゃくに つく もの、ゴムを 長く のばすと とおくまで とぶ など" },
+    ],
   },
   3: {
     math: [
@@ -98,6 +112,16 @@ export const CURRICULUM: Curriculum = {
       { id: "e3-like", name: "すきなもの", guide: "I like 〜. Do you like 〜?" },
       { id: "e3-alphabet", name: "アルファベット", guide: "大文字" },
     ],
+    science: [
+      { id: "s3-insect", name: "こん虫", guide: "こん虫の体（頭・むね・はら、あし6本はむねから）、たまご→よう虫→さなぎ→せい虫、クモや ダンゴムシは こん虫ではない" },
+      { id: "s3-plant", name: "植物の体と育ち", guide: "根・くき・葉、たね→め→花→実、子葉" },
+      { id: "s3-shadow", name: "太陽とかげ", guide: "かげは太陽の反対がわにできる、太陽は東→南→西に動く、日なたと日かげの地面の温度" },
+      { id: "s3-light", name: "光", guide: "かがみで光をはね返す、光を集めると明るく あたたかくなる、虫めがね" },
+      { id: "s3-magnet", name: "じしゃく", guide: "鉄はじしゃくにつく（アルミ・銅・紙はつかない）、N極とS極、同じ極は しりぞけ合う" },
+      { id: "s3-circuit", name: "電気の通り道", guide: "かん電池・豆電球・回路、電気を通すもの（金ぞく）と通さないもの" },
+      { id: "s3-weight", name: "ものと重さ", guide: "形を変えても重さは同じ、同じ体積でも ものによって重さがちがう" },
+      { id: "s3-sound", name: "音", guide: "音が出るものは ふるえている、大きい音ほど ふるえが大きい、糸電話" },
+    ],
   },
   4: {
     math: [
@@ -113,6 +137,15 @@ export const CURRICULUM: Curriculum = {
       { id: "e4-time", name: "時こく", guide: "What time is it? It's 〜." },
       { id: "e4-want", name: "ほしいもの", guide: "What do you want? I want 〜." },
       { id: "e4-alphabet", name: "アルファベット", guide: "小文字" },
+    ],
+    science: [
+      { id: "s4-body", name: "人の体のつくりと運動", guide: "ほね・きん肉・関節のはたらき" },
+      { id: "s4-season", name: "季節と生き物", guide: "季節による動物の活動や植物の成長のちがい（ツバメ・ヘチマ・サクラ など）" },
+      { id: "s4-weather", name: "天気と気温", guide: "晴れの日と雨の日の1日の気温の変化、百葉箱、温度計の読み方" },
+      { id: "s4-water", name: "水のすがた", guide: "水は0℃でこおり、約100℃でふっとうする、水・氷・水じょう気、じょう発と結ろ" },
+      { id: "s4-heat", name: "もののあたたまり方", guide: "金ぞく・水・空気のあたたまり方、あたためると体積がふえる" },
+      { id: "s4-current", name: "電気のはたらき", guide: "かん電池の直列つなぎ・へい列つなぎ、電流の向き、モーター" },
+      { id: "s4-moon-star", name: "月と星", guide: "月の形と動き、星の明るさと色、星座、夏の大三角" },
     ],
   },
   5: {
@@ -141,6 +174,17 @@ export const CURRICULUM: Curriculum = {
       { id: "e5-person", name: "人しょうかい", guide: "He / She is 〜. He can 〜. 家族・職業の単語" },
       { id: "e5-words", name: "英単語", guide: "身の回りの単語（天気・動物・食べ物・スポーツ・色）の意味" },
     ],
+    science: [
+      { id: "s5-germination", name: "発芽と成長", guide: "発芽に必要な条件（水・空気・適当な温度）、子葉のでんぷん、成長に必要な日光と肥料" },
+      { id: "s5-flower", name: "花から実へ", guide: "おしべ・めしべ・花粉、受粉すると実ができる、アサガオ・ヘチマ" },
+      { id: "s5-medaka", name: "メダカのたんじょう", guide: "メダカのおすとめすの見分け方、受精卵の育ち、けんび鏡の使い方" },
+      { id: "s5-human", name: "人のたんじょう", guide: "子宮・たいばん・へそのお・羊水、約38週で生まれる" },
+      { id: "s5-weather", name: "天気の変化", guide: "雲の量と天気、天気はおよそ西から東へ変わる、台風" },
+      { id: "s5-river", name: "流れる水のはたらき", guide: "しん食・運ぱん・たい積、川の上流と下流の石のちがい、曲がった所の外側と内側" },
+      { id: "s5-dissolve", name: "もののとけ方", guide: "水よう液、とけたものの重さはなくならない、水の量や温度ととける量、食塩とミョウバン" },
+      { id: "s5-pendulum", name: "ふりこ", guide: "ふりこが1往復する時間は ふりこの長さで決まる（おもりの重さや ふれはばでは変わらない）" },
+      { id: "s5-electromagnet", name: "電磁石", guide: "コイルと鉄しん、電流を流したときだけ磁石になる、極は電流の向きで変わる、強くする方法" },
+    ],
   },
   6: {
     math: [
@@ -157,6 +201,17 @@ export const CURRICULUM: Curriculum = {
       { id: "e6-country", name: "国と文化", guide: "Where do you want to go? I want to go to 〜." },
       { id: "e6-words", name: "英単語", guide: "身の回りの単語の意味とつづり" },
     ],
+    science: [
+      { id: "s6-combustion", name: "ものの燃え方", guide: "ものが燃えるには酸素が必要、燃えると二酸化炭素ができる、石灰水" },
+      { id: "s6-body", name: "人の体のはたらき", guide: "消化（だ液・胃・小腸）、呼吸（肺）、血液のじゅんかん（心ぞう）、じん臓" },
+      { id: "s6-plant", name: "植物の養分と水", guide: "葉に日光が当たるとでんぷんができる、根から吸った水は葉から出ていく（蒸散）" },
+      { id: "s6-ecosystem", name: "生物とかんきょう", guide: "食べる・食べられるの関係（食物連さ）、植物が酸素を出す、水のじゅんかん" },
+      { id: "s6-moon", name: "月と太陽", guide: "月の形の見え方は月と太陽の位置関係で変わる、月の光っている側に太陽がある" },
+      { id: "s6-earth", name: "土地のつくりと変化", guide: "地層（れき・砂・どろ）、化石、火山のふん火や地しんによる土地の変化" },
+      { id: "s6-solution", name: "水よう液の性質", guide: "酸性・中性・アルカリ性、リトマス紙、金ぞくをとかす水よう液" },
+      { id: "s6-lever", name: "てこ", guide: "支点・力点・作用点、てこのつり合い（おもりの重さ×支点からのきょり）" },
+      { id: "s6-electricity", name: "電気の利用", guide: "発電（手回し発電機・光電池）、コンデンサーにためる、電気を光・音・熱・運動に変える、LED" },
+    ],
   },
 };
 
@@ -164,20 +219,22 @@ export function unitsFor(grade: number, subject: Subject): Unit[] {
   return CURRICULUM[grade]?.[subject] ?? CURRICULUM[2][subject] ?? CURRICULUM[PRESCHOOL][subject] ?? [];
 }
 
-/** その学年で出す2つの科目。保育園は「かず」と「ひらがな」、小学生は算数と英語 */
-export function subjectsFor(grade: number): [main: Subject, second: Subject] {
-  return grade === PRESCHOOL ? ["math", "japanese"] : ["math", "english"];
+/** その学年で出す科目。保育園は「かず」と「ひらがな」、小学生は算数・英語・理科 */
+export function subjectsFor(grade: number): Subject[] {
+  return grade === PRESCHOOL ? ["math", "japanese"] : ["math", "english", "science"];
 }
 
 /** 画面に出す科目名 */
 export function subjectLabel(subject: Subject, grade: number): string {
   if (subject === "math") return grade === PRESCHOOL ? "かず" : "さんすう";
+  if (subject === "science") return "りか";
   return subject === "english" ? "えいご" : "ひらがな";
 }
 
 /** AIへの指示に使う科目名 */
 export function subjectName(subject: Subject, grade: number): string {
   if (subject === "math") return grade === PRESCHOOL ? "かず（数の学習）" : "算数";
+  if (subject === "science") return grade <= 2 ? "理科（生活科の内容）" : "理科";
   return subject === "english" ? "英語" : "ひらがな";
 }
 

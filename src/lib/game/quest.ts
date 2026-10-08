@@ -1,4 +1,4 @@
-import { PRESCHOOL, subjectsFor, type Subject, type Unit } from "@/lib/curriculum/units";
+import { PRESCHOOL, type Subject, type Unit } from "@/lib/curriculum/units";
 
 export type StageKind = "minion" | "boss";
 
@@ -18,12 +18,12 @@ export function bonusRoundsForReset(playedRounds: number): number {
   return Math.max(0, playedRounds);
 }
 
-/** 1日のクエストの構成：雑魚3体＋ボス。合計10問 */
+/** 1日のクエストの構成（小学生）：雑魚3体＋ボス。合計10問（算数4・英語3・理科3） */
 export const QUEST_STAGES: { kind: StageKind; subjects: Subject[] }[] = [
   { kind: "minion", subjects: ["math", "math", "math"] },
   { kind: "minion", subjects: ["english", "english", "english"] },
-  { kind: "minion", subjects: ["math", "english"] },
-  { kind: "boss", subjects: ["math", "english"] },
+  { kind: "minion", subjects: ["science", "science"] },
+  { kind: "boss", subjects: ["math", "science"] },
 ];
 
 export const QUEST_SUBJECTS: Subject[] = QUEST_STAGES.flatMap((s) => s.subjects);
@@ -41,9 +41,7 @@ const PRESCHOOL_SUBJECTS: Subject[] = [
 
 /** その学年のクエストの科目の並び */
 export function questSubjects(grade: number): Subject[] {
-  if (grade === PRESCHOOL) return PRESCHOOL_SUBJECTS;
-  const [main, second] = subjectsFor(grade);
-  return QUEST_SUBJECTS.map((s) => (s === "math" ? main : second));
+  return grade === PRESCHOOL ? PRESCHOOL_SUBJECTS : QUEST_SUBJECTS;
 }
 
 export type UnitStats = Map<string, { total: number; correct: number }>;

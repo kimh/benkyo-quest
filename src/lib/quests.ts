@@ -94,7 +94,12 @@ async function recentPrompts(playerId: number): Promise<string[]> {
 }
 
 export function subjectLevels(player: Player): Record<Subject, number> {
-  return { math: player.mathLevel, english: player.englishLevel, japanese: player.japaneseLevel };
+  return {
+    math: player.mathLevel,
+    english: player.englishLevel,
+    japanese: player.japaneseLevel,
+    science: player.scienceLevel,
+  };
 }
 
 function buildSlots(player: Player, stats: UnitStats): Slot[] {
@@ -250,7 +255,7 @@ export async function submitAnswer(player: Player, index: number, value: string)
   throw new Error("解答を保存できませんでした");
 }
 
-const LEVEL_COLUMN = { math: "mathLevel", english: "englishLevel", japanese: "japaneseLevel" } as const;
+const LEVEL_COLUMN = { math: "mathLevel", english: "englishLevel", japanese: "japaneseLevel", science: "scienceLevel" } as const;
 
 /**
  * 全問答え終わっていればクエストをクリアにし、ごほうび（Gem・EXP/Lv・連続日数・科目レベル）を付ける。

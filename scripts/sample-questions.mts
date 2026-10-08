@@ -21,7 +21,7 @@ const picked = new Map([...new Set(subjects)].map((s) => [s, pickUnits(courseUni
 const slots = subjects.map((subject) => ({ subject, unit: picked.get(subject)!.shift()!, difficulty: level }));
 
 const started = Date.now();
-const result = await generateQuestions({ grade, levels: { math: level, english: level, japanese: level }, eiken, slots, recentPrompts: [] });
+const result = await generateQuestions({ grade, levels: { math: level, english: level, japanese: level, science: level }, eiken, slots, recentPrompts: [] });
 const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
 console.log(`# ${grade === 0 ? "保育園" : `${grade}年生`}${eiken ? ` / 英語は${eikenLabel(eiken)}` : ""} / レベル${level}: ${seconds}秒, リクエスト${result.requests}回, AI ${result.aiCount}/${slots.length}問\n`);

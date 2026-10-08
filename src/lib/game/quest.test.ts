@@ -65,10 +65,21 @@ describe("parseSubjectLevel", () => {
 });
 
 describe("questSubjects", () => {
-  it("小学生は算数と英語が5問ずつ", () => {
-    const subjects = questSubjects(5);
-    expect(subjects.filter((s) => s === "math")).toHaveLength(5);
-    expect(subjects.filter((s) => s === "english")).toHaveLength(5);
+  it("小学生は算数4問・英語3問・理科3問", () => {
+    for (const grade of [1, 2, 5]) {
+      const subjects = questSubjects(grade);
+      expect(subjects.filter((s) => s === "math")).toHaveLength(4);
+      expect(subjects.filter((s) => s === "english")).toHaveLength(3);
+      expect(subjects.filter((s) => s === "science")).toHaveLength(3);
+    }
+  });
+  it("小学生はどの学年にも理科の単元があり、id が重ならない", () => {
+    const ids = [1, 2, 3, 4, 5, 6].flatMap((grade) => {
+      const units = unitsFor(grade, "science");
+      expect(units.length, `${grade}年`).toBeGreaterThan(0);
+      return units.map((u) => u.id);
+    });
+    expect(new Set(ids).size).toBe(ids.length);
   });
   it("保育園は ひらがな7問・かず3問で、ステージの問題数は同じ", () => {
     const subjects = questSubjects(0);

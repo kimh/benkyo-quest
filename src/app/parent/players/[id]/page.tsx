@@ -13,7 +13,7 @@ import { redeemSummary } from "@/lib/redemptions";
 import { resetRounds, updateLevel, updateRobux } from "../../actions";
 import { EnglishCourseForm } from "./EnglishCourseForm";
 
-const SUBJECT_NAME: Record<Subject, string> = { math: "算数", english: "英語", japanese: "ひらがな" };
+const SUBJECT_NAME: Record<Subject, string> = { math: "算数", english: "英語", japanese: "ひらがな", science: "理科" };
 
 const STATUS = {
   pending: { label: "申請中", color: "text-accent" },
